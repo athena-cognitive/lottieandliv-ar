@@ -43,8 +43,8 @@
 
 <div class="panel" id="start-panel">
   <h1>Your card is magic ✨</h1>
-  <p>Point your phone camera at a card — the <b>Playful Reindeer</b> or the <b>Cozy Fireplace</b> — and watch it come alive.</p>
-  <p style="font-size:14px; opacity:.85;">Works with both versions of each card — with the code, and the clean one without.</p>
+  <p>Point your phone camera at <b>any LottieAndLiv Christmas card</b> and watch it come alive.</p>
+  <p style="font-size:14px; opacity:.85;">Works with both versions of every card — with the code, and the clean one without.</p>
   <button id="start-btn">Start the magic</button>
   <p style="font-size:13px; opacity:.75; margin-top:18px;">Your camera is only used to see the card. Nothing is recorded or sent anywhere.</p>
 </div>
@@ -279,6 +279,407 @@ function buildSantaScene(anchor) {
   };
 }
 
+// ---------- Scene 3: penguin waddles in and belly-slides (targets 4 & 5, portrait) ----------
+function buildPenguinScene(anchor) {
+  const WAD_FRAMES = 10, SLI_FRAMES = 8, LOOP = 10;
+  const SNOW_Y = -0.21, ICE_Y = -0.48;
+  const wadTex = new THREE.TextureLoader().load('./sprite-penguin-waddle.png');
+  wadTex.colorSpace = THREE.SRGBColorSpace;
+  wadTex.repeat.set(1 / WAD_FRAMES, 1);
+  const wadMat = new THREE.MeshBasicMaterial({ map: wadTex, transparent: true, side: THREE.DoubleSide });
+  const wadH = 0.30, wadW = wadH * (370 / 448);
+  const wad = new THREE.Mesh(new THREE.PlaneGeometry(wadW, wadH), wadMat);
+  wad.position.set(-0.66, SNOW_Y + wadH / 2, 0.02);
+  anchor.group.add(wad);
+
+  const sliTex = new THREE.TextureLoader().load('./sprite-penguin-slide.png');
+  sliTex.colorSpace = THREE.SRGBColorSpace;
+  sliTex.repeat.set(1 / SLI_FRAMES, 1);
+  const sliMat = new THREE.MeshBasicMaterial({ map: sliTex, transparent: true, side: THREE.DoubleSide });
+  const sliH = 0.17, sliW = sliH * (793 / 448);
+  const sli = new THREE.Mesh(new THREE.PlaneGeometry(sliW, sliH), sliMat);
+  sli.position.set(-0.16, ICE_Y + sliH / 2, 0.02);
+  sli.visible = false;
+  anchor.group.add(sli);
+
+  const shadow = makeShadow(0.26, 0.08);
+  shadow.position.set(-0.66, SNOW_Y + 0.01, 0.005);
+  anchor.group.add(shadow);
+
+  const SNOW = 120;
+  const pos = new Float32Array(SNOW * 3);
+  const speed = new Float32Array(SNOW);
+  for (let i = 0; i < SNOW; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 1.0;
+    pos[i * 3 + 1] = (Math.random() - 0.5) * 1.5;
+    pos[i * 3 + 2] = 0.01 + Math.random() * 0.05;
+    speed[i] = 0.03 + Math.random() * 0.06;
+  }
+  const snowGeo = new THREE.BufferGeometry();
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+    map: makeFlakeTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.85)'),
+    size: 0.016, transparent: true, depthWrite: false, opacity: 0.95
+  }));
+  anchor.group.add(snow);
+
+  watchHint(anchor);
+
+  return (t, dt) => {
+    const arr = snowGeo.attributes.position.array;
+    for (let i = 0; i < SNOW; i++) {
+      arr[i * 3 + 1] -= speed[i] * dt;
+      arr[i * 3] += Math.sin(t * 1.5 + i) * 0.0006;
+      if (arr[i * 3 + 1] < -0.75) {
+        arr[i * 3 + 1] = 0.75;
+        arr[i * 3] = (Math.random() - 0.5) * 1.0;
+      }
+    }
+    snowGeo.attributes.position.needsUpdate = true;
+
+    const lt = t % LOOP;
+    if (lt < 3.2) {
+      // Waddle in across the snow
+      const p = lt / 3.2;
+      const x = -0.66 + p * 0.5;
+      wad.visible = true; sli.visible = false;
+      wad.position.x = x;
+      wad.position.y = SNOW_Y + wadH / 2 + Math.abs(Math.sin(lt * 9)) * 0.008;
+      wad.rotation.z = Math.sin(lt * 9) * 0.06;
+      wadTex.offset.x = (Math.floor(lt * 8) % WAD_FRAMES) / WAD_FRAMES;
+      wadMat.opacity = Math.min(1, lt / 0.4);
+      shadow.position.set(x, SNOW_Y + 0.01, 0.005);
+      shadow.material.opacity = wadMat.opacity * 0.9;
+    } else if (lt < 3.7) {
+      // Tip forward onto the ice
+      const p = (lt - 3.2) / 0.5;
+      wad.visible = false; sli.visible = true;
+      sli.position.x = -0.16;
+      sli.position.y = ICE_Y + sliH / 2 + (SNOW_Y - ICE_Y) * (1 - p) * 0.35;
+      sliTex.offset.x = (Math.floor(lt * 2) % SLI_FRAMES) / SLI_FRAMES;
+      sliMat.opacity = 1;
+      shadow.position.set(-0.16, ICE_Y + 0.01, 0.005);
+      shadow.material.opacity = 0.9;
+    } else if (lt < 6.2) {
+      // The big belly slide
+      const p = (lt - 3.7) / 2.5;
+      const x = -0.16 + p * 0.56;
+      sli.visible = true;
+      sli.position.x = x;
+      sli.position.y = ICE_Y + sliH / 2 + Math.sin(lt * 7) * 0.006;
+      sliTex.offset.x = (Math.floor(lt * 2.5) % SLI_FRAMES) / SLI_FRAMES;
+      shadow.position.set(x, ICE_Y + 0.01, 0.005);
+    } else if (lt < 9.0) {
+      // Pop up and celebrate
+      sli.visible = false; wad.visible = true;
+      wad.position.x = 0.40;
+      const hop = lt < 8.4 ? Math.max(0, Math.sin((lt - 6.2) * 3.6)) * 0.035 : 0;
+      wad.position.y = ICE_Y + wadH / 2 + hop;
+      wad.rotation.z = Math.sin(lt * 5) * 0.05;
+      wadTex.offset.x = (Math.floor(lt * 3) % WAD_FRAMES) / WAD_FRAMES;
+      wadMat.opacity = 1;
+      shadow.position.set(0.40, ICE_Y + 0.01, 0.005);
+      shadow.material.opacity = 0.9;
+    } else {
+      const fade = 1 - (lt - 9.0);
+      wadMat.opacity = Math.max(0, fade);
+      wad.visible = fade > 0.01;
+      shadow.material.opacity = Math.max(0, fade) * 0.9;
+    }
+  };
+}
+
+// ---------- Scene 4: fox runs through the forest (targets 6 & 7, portrait) ----------
+function buildFoxScene(anchor) {
+  const FRAMES = 15, LOOP = 9, RUN = 5.5, FEET_Y = -0.30;
+  const tex = new THREE.TextureLoader().load('./sprite-fox.png');
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.repeat.set(1 / FRAMES, 1);
+  const foxMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+  const foxH = 0.23, foxW = foxH * (698 / 448);
+  const fox = new THREE.Mesh(new THREE.PlaneGeometry(foxW, foxH), foxMat);
+  fox.position.set(-0.72, FEET_Y + foxH / 2, 0.02);
+  anchor.group.add(fox);
+
+  const shadow = makeShadow(0.30, 0.08);
+  shadow.position.set(-0.72, FEET_Y + 0.01, 0.005);
+  anchor.group.add(shadow);
+
+  // Soft moon glow at the top of the card
+  const moonCanvas = document.createElement('canvas');
+  moonCanvas.width = moonCanvas.height = 128;
+  const mctx = moonCanvas.getContext('2d');
+  const mgrad = mctx.createRadialGradient(64, 64, 4, 64, 64, 62);
+  mgrad.addColorStop(0, 'rgba(255,243,196,0.8)');
+  mgrad.addColorStop(0.5, 'rgba(255,240,190,0.25)');
+  mgrad.addColorStop(1, 'rgba(255,240,190,0)');
+  mctx.fillStyle = mgrad; mctx.fillRect(0, 0, 128, 128);
+  const moon = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.55, 0.55),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(moonCanvas), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })
+  );
+  moon.position.set(0, 0.60, 0.004);
+  anchor.group.add(moon);
+
+  const SNOW = 120;
+  const pos = new Float32Array(SNOW * 3);
+  const speed = new Float32Array(SNOW);
+  for (let i = 0; i < SNOW; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 1.0;
+    pos[i * 3 + 1] = (Math.random() - 0.5) * 1.5;
+    pos[i * 3 + 2] = 0.01 + Math.random() * 0.05;
+    speed[i] = 0.03 + Math.random() * 0.06;
+  }
+  const snowGeo = new THREE.BufferGeometry();
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+    map: makeFlakeTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.85)'),
+    size: 0.016, transparent: true, depthWrite: false, opacity: 0.95
+  }));
+  anchor.group.add(snow);
+
+  watchHint(anchor);
+
+  return (t, dt) => {
+    moon.material.opacity = 0.35 + 0.15 * Math.sin(t * 1.1);
+    const arr = snowGeo.attributes.position.array;
+    for (let i = 0; i < SNOW; i++) {
+      arr[i * 3 + 1] -= speed[i] * dt;
+      arr[i * 3] += Math.sin(t * 1.5 + i) * 0.0006;
+      if (arr[i * 3 + 1] < -0.75) {
+        arr[i * 3 + 1] = 0.75;
+        arr[i * 3] = (Math.random() - 0.5) * 1.0;
+      }
+    }
+    snowGeo.attributes.position.needsUpdate = true;
+
+    const lt = t % LOOP;
+    if (lt < RUN) {
+      const p = lt / RUN;
+      const x = -0.72 + p * 1.44;
+      fox.position.x = x;
+      fox.position.y = FEET_Y + foxH / 2 + Math.abs(Math.sin(p * Math.PI * 16)) * 0.014;
+      const dist = x + 0.72;
+      tex.offset.x = (Math.floor((dist / 0.55) * FRAMES) % FRAMES) / FRAMES;
+      const fade = Math.min(1, lt / 0.5, (RUN - lt) / 0.5);
+      foxMat.opacity = Math.max(0, fade);
+      fox.visible = fade > 0.01;
+      shadow.position.x = x;
+      shadow.material.opacity = Math.max(0, fade) * 0.9;
+    } else {
+      fox.visible = false;
+      shadow.material.opacity = 0;
+    }
+  };
+}
+
+// ---------- Scene 5: village smoke + twinkling windows (targets 8 & 9, portrait) ----------
+function buildVillageScene(anchor) {
+  const H = 4 / 3;
+  const X = fx => fx - 0.5, Y = fy => H / 2 - fy * H;
+
+  const smokeTex = makeFlakeTexture('rgba(238,238,242,0.6)', 'rgba(228,228,234,0.3)');
+  const puffs = [];
+  for (const [fx, fy] of [[0.105, 0.135], [0.205, 0.105]]) {
+    for (let i = 0; i < 7; i++) {
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+        new THREE.MeshBasicMaterial({ map: smokeTex, transparent: true, opacity: 0, depthWrite: false }));
+      p.position.set(X(fx), Y(fy), 0.012);
+      p.userData = { cx: X(fx), cy: Y(fy), off: i / 7 };
+      anchor.group.add(p);
+      puffs.push(p);
+    }
+  }
+
+  const glowTexV = makeFlakeTexture('rgba(255,205,110,1)', 'rgba(255,170,70,.85)');
+  const windows = [];
+  for (const [i, [fx, fy]] of [[0.19, 0.225], [0.175, 0.345], [0.375, 0.375], [0.455, 0.30], [0.265, 0.49]].entries()) {
+    const g = new THREE.Mesh(new THREE.PlaneGeometry(0.075, 0.075),
+      new THREE.MeshBasicMaterial({ map: glowTexV, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    g.position.set(X(fx), Y(fy), 0.015);
+    g.userData.i = i;
+    anchor.group.add(g);
+    windows.push(g);
+  }
+
+  const SNOW = 120;
+  const pos = new Float32Array(SNOW * 3);
+  const speed = new Float32Array(SNOW);
+  for (let i = 0; i < SNOW; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 1.0;
+    pos[i * 3 + 1] = (Math.random() - 0.5) * H;
+    pos[i * 3 + 2] = 0.01 + Math.random() * 0.05;
+    speed[i] = 0.03 + Math.random() * 0.06;
+  }
+  const snowGeo = new THREE.BufferGeometry();
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+    map: makeFlakeTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.85)'),
+    size: 0.015, transparent: true, depthWrite: false, opacity: 0.95
+  }));
+  anchor.group.add(snow);
+
+  watchHint(anchor);
+
+  return (t, dt) => {
+    const arr = snowGeo.attributes.position.array;
+    for (let i = 0; i < SNOW; i++) {
+      arr[i * 3 + 1] -= speed[i] * dt;
+      arr[i * 3] += Math.sin(t * 1.5 + i) * 0.0006;
+      if (arr[i * 3 + 1] < -H / 2) {
+        arr[i * 3 + 1] = H / 2;
+        arr[i * 3] = (Math.random() - 0.5) * 1.0;
+      }
+    }
+    snowGeo.attributes.position.needsUpdate = true;
+
+    for (const p of puffs) {
+      const ph = (t * 0.22 + p.userData.off) % 1;
+      p.position.y = p.userData.cy + ph * 0.24;
+      p.position.x = p.userData.cx - ph * 0.045 + Math.sin(t * 1.3 + ph * 9) * 0.008;
+      const s = 0.05 + ph * 0.15;
+      p.scale.set(s, s, 1);
+      p.material.opacity = 0.55 * Math.sin(ph * Math.PI);
+    }
+    for (const g of windows) {
+      g.material.opacity = 0.20 + 0.40 * (0.5 + 0.5 * Math.sin(t * 2.2 + g.userData.i * 1.7));
+    }
+  };
+}
+
+// ---------- Scene 6: gold sparkles around the star (targets 10-13, elegant cards) ----------
+function buildElegantScene(anchor, sparkColor) {
+  const H = 2 / 3;
+  const starX = 0, starY = H / 2 - 0.07 * H;
+
+  const glowCanvas = document.createElement('canvas');
+  glowCanvas.width = glowCanvas.height = 128;
+  const gctx = glowCanvas.getContext('2d');
+  const ggrad = gctx.createRadialGradient(64, 64, 4, 64, 64, 62);
+  ggrad.addColorStop(0, 'rgba(255,233,168,0.8)');
+  ggrad.addColorStop(0.5, 'rgba(255,220,150,0.25)');
+  ggrad.addColorStop(1, 'rgba(255,220,150,0)');
+  gctx.fillStyle = ggrad; gctx.fillRect(0, 0, 128, 128);
+  const glow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.36, 0.36),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowCanvas), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })
+  );
+  glow.position.set(starX, starY, 0.004);
+  anchor.group.add(glow);
+
+  const N = 26;
+  const pos = new Float32Array(N * 3);
+  const meta = [];
+  for (let i = 0; i < N; i++) {
+    meta.push({ r: 0.05 + Math.random() * 0.12, a: Math.random() * Math.PI * 2, sp: 0.4 + Math.random() * 0.9 });
+    pos[i * 3 + 2] = 0.02;
+  }
+  const orbGeo = new THREE.BufferGeometry();
+  orbGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const orbMat = new THREE.PointsMaterial({
+    map: makeFlakeTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.9)'),
+    size: 0.02, transparent: true, depthWrite: false, color: sparkColor, blending: THREE.AdditiveBlending
+  });
+  const orbit = new THREE.Points(orbGeo, orbMat);
+  anchor.group.add(orbit);
+
+  // Gentle gold dust falling over the whole card
+  const DUST = 42;
+  const dpos = new Float32Array(DUST * 3);
+  const dspeed = new Float32Array(DUST);
+  for (let i = 0; i < DUST; i++) {
+    dpos[i * 3] = (Math.random() - 0.5) * 1.0;
+    dpos[i * 3 + 1] = (Math.random() - 0.5) * H;
+    dpos[i * 3 + 2] = 0.01 + Math.random() * 0.04;
+    dspeed[i] = 0.012 + Math.random() * 0.025;
+  }
+  const dustGeo = new THREE.BufferGeometry();
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(dpos, 3));
+  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+    map: makeFlakeTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.9)'),
+    size: 0.011, transparent: true, depthWrite: false, opacity: 0.8, color: sparkColor, blending: THREE.AdditiveBlending
+  }));
+  anchor.group.add(dust);
+
+  watchHint(anchor);
+
+  return (t, dt) => {
+    glow.material.opacity = 0.35 + 0.20 * Math.sin(t * 1.5);
+    const a = orbGeo.attributes.position.array;
+    for (let i = 0; i < N; i++) {
+      const m = meta[i], ang = m.a + t * m.sp;
+      a[i * 3] = starX + Math.cos(ang) * m.r;
+      a[i * 3 + 1] = starY + Math.sin(ang) * m.r * 0.8;
+    }
+    orbGeo.attributes.position.needsUpdate = true;
+    orbMat.opacity = 0.7 + 0.3 * Math.sin(t * 2.6);
+
+    const da = dustGeo.attributes.position.array;
+    for (let i = 0; i < DUST; i++) {
+      da[i * 3 + 1] -= dspeed[i] * dt;
+      da[i * 3] += Math.sin(t * 1.2 + i * 2.1) * 0.0009;
+      if (da[i * 3 + 1] < -H / 2) {
+        da[i * 3 + 1] = H / 2;
+        da[i * 3] = (Math.random() - 0.5) * 1.0;
+      }
+    }
+    dustGeo.attributes.position.needsUpdate = true;
+  };
+}
+
+// ---------- Scene 7: snow falls inside the photo frame (targets 14 & 15, portrait) ----------
+function buildPhotoFrameScene(anchor) {
+  const H = 1.5;
+  const X = fx => fx - 0.5, Y = fy => H / 2 - fy * H;
+  const RX0 = -0.35, RX1 = 0.19, RY0 = -0.16, RY1 = 0.47;
+
+  const SNOW = 85;
+  const pos = new Float32Array(SNOW * 3);
+  const speed = new Float32Array(SNOW);
+  for (let i = 0; i < SNOW; i++) {
+    pos[i * 3] = RX0 + Math.random() * (RX1 - RX0);
+    pos[i * 3 + 1] = RY0 + Math.random() * (RY1 - RY0);
+    pos[i * 3 + 2] = 0.012;
+    speed[i] = 0.025 + Math.random() * 0.05;
+  }
+  const snowGeo = new THREE.BufferGeometry();
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+    map: makeFlakeTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.85)'),
+    size: 0.015, transparent: true, depthWrite: false, opacity: 0.95
+  }));
+  anchor.group.add(snow);
+
+  const glowTexP = makeFlakeTexture('rgba(255,205,110,1)', 'rgba(255,170,70,.85)');
+  const twinkles = [];
+  for (const [i, [fx, fy]] of [[0.095, 0.275], [0.205, 0.20], [0.63, 0.245], [0.645, 0.50], [0.085, 0.555]].entries()) {
+    const g = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.05),
+      new THREE.MeshBasicMaterial({ map: glowTexP, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    g.position.set(X(fx), Y(fy), 0.015);
+    g.userData.i = i;
+    anchor.group.add(g);
+    twinkles.push(g);
+  }
+
+  watchHint(anchor);
+
+  return (t, dt) => {
+    const arr = snowGeo.attributes.position.array;
+    for (let i = 0; i < SNOW; i++) {
+      arr[i * 3 + 1] -= speed[i] * dt;
+      arr[i * 3] += Math.sin(t * 1.4 + i) * 0.0005;
+      if (arr[i * 3 + 1] < RY0) {
+        arr[i * 3 + 1] = RY1;
+        arr[i * 3] = RX0 + Math.random() * (RX1 - RX0);
+      }
+    }
+    snowGeo.attributes.position.needsUpdate = true;
+    for (const g of twinkles) {
+      g.material.opacity = 0.18 + 0.36 * (0.5 + 0.5 * Math.sin(t * 2.0 + g.userData.i * 1.7));
+    }
+  };
+}
+
 async function startAR() {
   const mindarThree = new MindARThree({
     container: document.getElementById('ar-container'),
@@ -288,13 +689,26 @@ async function startAR() {
   });
   const { renderer, scene, camera } = mindarThree;
 
-  // Targets: 0 = reindeer card w/ code, 1 = reindeer clean,
-  //          2 = fireplace card w/ code, 3 = fireplace clean
+  // Targets (even = card with code, odd = clean version):
+  // 0-1 reindeer, 2-3 fireplace, 4-5 penguins, 6-7 forest fox,
+  // 8-9 winter village, 10-11 elegant green, 12-13 elegant red, 14-15 photo frame
   const updaters = [
     buildReindeerScene(mindarThree.addAnchor(0)),
     buildReindeerScene(mindarThree.addAnchor(1)),
     buildSantaScene(mindarThree.addAnchor(2)),
     buildSantaScene(mindarThree.addAnchor(3)),
+    buildPenguinScene(mindarThree.addAnchor(4)),
+    buildPenguinScene(mindarThree.addAnchor(5)),
+    buildFoxScene(mindarThree.addAnchor(6)),
+    buildFoxScene(mindarThree.addAnchor(7)),
+    buildVillageScene(mindarThree.addAnchor(8)),
+    buildVillageScene(mindarThree.addAnchor(9)),
+    buildElegantScene(mindarThree.addAnchor(10), 0xffd882),
+    buildElegantScene(mindarThree.addAnchor(11), 0xffd882),
+    buildElegantScene(mindarThree.addAnchor(12), 0xffb080),
+    buildElegantScene(mindarThree.addAnchor(13), 0xffb080),
+    buildPhotoFrameScene(mindarThree.addAnchor(14)),
+    buildPhotoFrameScene(mindarThree.addAnchor(15)),
   ];
 
   await mindarThree.start();
