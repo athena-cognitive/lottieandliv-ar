@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>LottieAndLiv — Watch the card come alive</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #123524; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  #ar-container { position: fixed; inset: 0; }
+  #ar-container canvas { display: block; }
+  .panel {
+    position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, #1d4d2e, #123524); color: #fff; text-align: center; padding: 24px; z-index: 10;
+  }
+  .panel h1 { font-size: 26px; margin: 0 0 8px; color: #f3c969; }
+  .panel p { font-size: 17px; line-height: 1.45; margin: 6px 0; max-width: 340px; }
+  #start-btn {
+    margin-top: 22px; font-size: 19px; font-weight: 700; color: #123524; background: #f3c969;
+    border: none; border-radius: 999px; padding: 15px 34px; cursor: pointer; box-shadow: 0 4px 18px rgba(0,0,0,.35);
+  }
+  #start-btn:active { transform: scale(.97); }
+  .hint {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 5;
+    background: rgba(0,0,0,.55); color: #fff; font-size: 15px; padding: 10px 18px; border-radius: 999px;
+    display: none; text-align: center; max-width: 86vw;
+  }
+  .brand { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 5; color: rgba(255,255,255,.85);
+    font-size: 13px; letter-spacing: .12em; text-transform: uppercase; display: none; }
+  #error-box { display: none; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="ar-container"></div>
+
+<div class="panel" id="start-panel">
+  <h1>Your card is magic ✨</h1>
+  <p>Point your phone camera at the <b>Playful Reindeer</b> card and watch — the reindeer comes alive and runs right across it.</p>
+  <button id="start-btn">Start the magic</button>
+  <p style="font-size:13px; opacity:.75; margin-top:18px;">Your camera is only used to see the card. Nothing is recorded or sent anywhere.</p>
+</div>
+
+<div class="panel" id="error-box">
+  <h1>Hmm, the magic got stuck</h1>
+  <p id="error-text">Something went wrong starting the camera.</p>
+  <p style="font-size:14px; opacity:.8;">Tip: open this page in Safari (iPhone) or Chrome (Android), allow camera access, and use good light.</p>
+</div>
+
+<div class="brand" id="brand">LottieAndLiv</div>
+<div class="hint" id="hint">Point your camera at the Playful Reindeer card 🎄</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { MindARThree } from 'mindar-image-three';
+
+const FRAMES = 11;          // sprite frames in one gallop cycle
+const CROSS_SECONDS = 3.4;  // time to run across the card
+
+const startPanel = document.getElementById('start-panel');
+const hint = document.getElementById('hint');
+const brand = document.getElementById('brand');
+const errorBox = document.getElementById('error-box');
+const errorText = document.getElementById('error-text');
+
+function showError(msg) {
+  startPanel.style.display = 'none';
+  errorText.textContent = msg;
+  errorBox.style.display = 'flex';
+}
+
+document.getElementById('start-btn').addEventListener('click', async () => {
+  startPanel.style.display = 'none';
+  hint.style.display = 'block';
+  brand.style.display = 'block';
+  try {
+    await startAR();
+  } catch (e) {
+    console.error(e);
+    showError('The camera could not start. Please allow camera access and try again.');
+  }
+});
+
+async function startAR() {
+  const mindarThree = new MindARThree({
+    container: document.getElementById('ar-container'),
+    imageTargetSrc: './targets.mind',
+    uiLoading: 'no', uiScanning: 'no', uiError: 'no',
+    maxTrack: 1,
+  });
+  const { renderer, scene, camera } = mindarThree;
+  const anchor = mindarThree.addAnchor(0);
+
+  // --- Reindeer sprite ---
+  const tex = new THREE.TextureLoader().load('./sprite.png');
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.repeat.set(1 / FRAMES, 1);
+  const deerMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+  const deerW = 0.46, deerH = deerW * (351 / 440);
+  const deer = new THREE.Mesh(new THREE.PlaneGeometry(deerW, deerH), deerMat);
+  deer.position.set(-0.62, -0.10, 0.02);
+  anchor.group.add(deer);
+
+  // --- Soft shadow under the reindeer ---
+  const shadowCanvas = document.createElement('canvas');
+  shadowCanvas.width = 128; shadowCanvas.height = 64;
+  const sctx = shadowCanvas.getContext('2d');
+  const grad = sctx.createRadialGradient(64, 32, 4, 64, 32, 60);
+  grad.addColorStop(0, 'rgba(20,40,30,0.35)');
+  grad.addColorStop(1, 'rgba(20,40,30,0)');
+  sctx.fillStyle = grad; sctx.fillRect(0, 0, 128, 64);
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.34, 0.10),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(shadowCanvas), transparent: true, depthWrite: false })
+  );
+  shadow.position.set(-0.62, -0.245, 0.005);
+  anchor.group.add(shadow);
+
+  // --- Falling snow ---
+  const SNOW = 170;
+  const pos = new Float32Array(SNOW * 3);
+  const speed = new Float32Array(SNOW);
+  for (let i = 0; i < SNOW; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 1.0;
+    pos[i * 3 + 1] = (Math.random() - 0.5) * 0.667;
+    pos[i * 3 + 2] = 0.01 + Math.random() * 0.05;
+    speed[i] = 0.03 + Math.random() * 0.06;
+  }
+  const snowGeo = new THREE.BufferGeometry();
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const flakeCanvas = document.createElement('canvas');
+  flakeCanvas.width = flakeCanvas.height = 32;
+  const fctx = flakeCanvas.getContext('2d');
+  const fgrad = fctx.createRadialGradient(16, 16, 1, 16, 16, 15);
+  fgrad.addColorStop(0, 'rgba(255,255,255,1)');
+  fgrad.addColorStop(0.6, 'rgba(255,255,255,.85)');
+  fgrad.addColorStop(1, 'rgba(255,255,255,0)');
+  fctx.fillStyle = fgrad; fctx.fillRect(0, 0, 32, 32);
+  const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+    map: new THREE.CanvasTexture(flakeCanvas), size: 0.016, transparent: true, depthWrite: false, opacity: 0.95
+  }));
+  anchor.group.add(snow);
+
+  anchor.onTargetFound = () => { hint.style.display = 'none'; };
+  anchor.onTargetLost = () => { hint.style.display = 'block'; };
+
+  await mindarThree.start();
+  const clock = new THREE.Clock();
+  renderer.setAnimationLoop(() => {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const t = clock.elapsedTime;
+
+    // Reindeer: run across, loop. Gallop frame tied to distance so legs match the ground.
+    const cycle = (t % CROSS_SECONDS) / CROSS_SECONDS;         // 0..1 across
+    const x = -0.62 + cycle * 1.24;
+    const gallops = 3;                                          // gallop cycles per crossing
+    const phase = (t / (CROSS_SECONDS / gallops)) % 1;
+    const frame = Math.floor(phase * FRAMES) % FRAMES;
+    tex.offset.x = frame / FRAMES;
+    const bob = Math.abs(Math.sin(phase * Math.PI * 2)) * 0.018;
+    deer.position.x = x;
+    deer.position.y = -0.10 + bob;
+    deerMat.opacity = Math.min(1, Math.min(cycle, 1 - cycle) * 8 + 0.15);
+    shadow.position.x = x;
+    shadow.material.opacity = deerMat.opacity;
+
+    // Snowfall
+    const arr = snowGeo.attributes.position.array;
+    for (let i = 0; i < SNOW; i++) {
+      arr[i * 3 + 1] -= speed[i] * dt;
+      arr[i * 3] += Math.sin(t * 1.5 + i) * 0.0006;
+      if (arr[i * 3 + 1] < -0.34) {
+        arr[i * 3 + 1] = 0.34;
+        arr[i * 3] = (Math.random() - 0.5) * 1.0;
+      }
+    }
+    snowGeo.attributes.position.needsUpdate = true;
+
+    renderer.render(scene, camera);
+  });
+}
+</script>
+</body>
+</html>
