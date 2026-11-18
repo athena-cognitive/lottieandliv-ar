@@ -613,6 +613,151 @@ function buildFoxScene(anchor) {
   };
 }
 
+// ---------- Scene 5b: the family in the snow (targets 8 & 9, portrait 4:3) ----------
+// Flor's design (Nov 18): two little girls (dark hair, dark brown eyes) build a
+// snowman in front of the house while it snows; then their parents arrive and
+// everyone has a snowball fight. Music: We Wish You a Merry Christmas.
+function buildVillageFamilyScene(anchor) {
+  const LOOP = 15, GROUND_Y = -0.155;
+
+  function makeFigure(file, frames, h, aspect) {
+    const tex = new THREE.TextureLoader().load(file);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.repeat.set(1 / frames, 1);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(h * aspect, h), mat);
+    mesh.visible = false;
+    anchor.group.add(mesh);
+    return { tex, mat, mesh, h, frames };
+  }
+
+  const girls = makeFigure('./sprite-girls-snowman.png', 7, 0.27, 673 / 448);
+  const mom = makeFigure('./sprite-mom-snowball.png', 18, 0.32, 626 / 448);
+  const dad = makeFigure('./sprite-dad-snowball.png', 15, 0.34, 695 / 448);
+  dad.mesh.scale.x = -1; // face left, toward the family
+
+  const GIRLS_X = -0.08, MOM_X = -0.34, DAD_X = 0.30;
+  girls.mesh.position.set(GIRLS_X, GROUND_Y + girls.h / 2, 0.02);
+  mom.mesh.position.set(-0.80, GROUND_Y + mom.h / 2, 0.02);
+  dad.mesh.position.set(0.82, GROUND_Y + dad.h / 2, 0.02);
+
+  const girlsShadow = makeShadow(0.36, 0.07);
+  girlsShadow.position.set(GIRLS_X, GROUND_Y + 0.01, 0.005);
+  const momShadow = makeShadow(0.22, 0.06);
+  const dadShadow = makeShadow(0.22, 0.06);
+  for (const s of [girlsShadow, momShadow, dadShadow]) { s.visible = false; anchor.group.add(s); }
+
+  // Snowballs for the fight
+  const ballTex = makeFlakeTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.9)');
+  const balls = [];
+  const BALL_PATHS = [
+    { from: [-0.28, 0.03], to: [-0.10, -0.04], arc: 0.13, dur: 1.4, delay: 0.0 },
+    { from: [-0.02, -0.02], to: [0.24, 0.00], arc: 0.12, dur: 1.4, delay: 0.7 },
+    { from: [0.24, 0.03], to: [-0.30, 0.02], arc: 0.20, dur: 2.0, delay: 0.4 },
+    { from: [-0.12, -0.02], to: [-0.28, 0.00], arc: 0.10, dur: 1.2, delay: 1.0 }
+  ];
+  for (const p of BALL_PATHS) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.034, 0.034),
+      new THREE.MeshBasicMaterial({ map: ballTex, transparent: true, depthWrite: false }));
+    m.visible = false;
+    anchor.group.add(m);
+    balls.push({ mesh: m, ...p });
+  }
+
+  const SNOW = 130;
+  const pos = new Float32Array(SNOW * 3);
+  const speed = new Float32Array(SNOW);
+  for (let i = 0; i < SNOW; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 1.0;
+    pos[i * 3 + 1] = (Math.random() - 0.5) * 1.333;
+    pos[i * 3 + 2] = 0.01 + Math.random() * 0.05;
+    speed[i] = 0.03 + Math.random() * 0.06;
+  }
+  const snowGeo = new THREE.BufferGeometry();
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+    map: makeFlakeTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.85)'),
+    size: 0.016, transparent: true, depthWrite: false, opacity: 0.35
+  }));
+  anchor.group.add(snow);
+
+  let foundAt = null, pendingStart = false, musicOn = false;
+  anchor.onTargetFound = () => { hint.style.display = 'none'; pendingStart = true; };
+  anchor.onTargetLost = () => {
+    hint.style.display = 'block';
+    foundAt = null;
+    if (musicOn) { musicBox.release(); musicOn = false; }
+  };
+
+  return (t, dt) => {
+    const arr = snowGeo.attributes.position.array;
+    for (let i = 0; i < SNOW; i++) {
+      arr[i * 3 + 1] -= speed[i] * dt;
+      arr[i * 3] += Math.sin(t * 1.5 + i) * 0.0006;
+      if (arr[i * 3 + 1] < -0.667) {
+        arr[i * 3 + 1] = 0.667;
+        arr[i * 3] = (Math.random() - 0.5) * 1.0;
+      }
+    }
+    snowGeo.attributes.position.needsUpdate = true;
+
+    if (pendingStart) { foundAt = t; pendingStart = false; }
+    if (foundAt === null) return;
+    const local = t - foundAt;
+    if (!musicOn) { musicBox.acquire('wish'); musicOn = true; }
+    snow.material.opacity = 0.35 + 0.6 * Math.min(1, local / 1.5);
+    const lt = local % LOOP;
+    const fadeAll = lt < 13.8 ? 1 : Math.max(0, 1 - (lt - 13.8) / 1.0);
+    const fight = lt - 8;
+
+    // The girls build their snowman the whole time
+    const gFade = Math.min(1, local / 0.3) * fadeAll;
+    girls.mesh.visible = gFade > 0.01;
+    girls.mat.opacity = gFade;
+    girls.tex.offset.x = (Math.floor(local * 7) % girls.frames) / girls.frames;
+    let gY = GROUND_Y, gRot = 0;
+    if (fight > 0) {
+      gY += Math.abs(Math.sin(fight * 5)) * 0.012;
+      gRot = Math.sin(fight * 3) * 0.02;
+    }
+    girls.mesh.position.y = gY + girls.h / 2;
+    girls.mesh.rotation.z = gRot;
+    girlsShadow.visible = girls.mesh.visible;
+    girlsShadow.material.opacity = gFade * 0.9;
+
+    // The parents arrive at 6s, sliding in from the edges
+    for (const [fig, finalX, startX, shadow, ph] of [[mom, MOM_X, -0.80, momShadow, 0], [dad, DAD_X, 0.82, dadShadow, 1.3]]) {
+      if (lt < 6) { fig.mesh.visible = false; shadow.visible = false; continue; }
+      const ap = Math.min(1, (lt - 6) / 2);
+      const ease = 1 - (1 - ap) * (1 - ap);
+      const x = startX + (finalX - startX) * ease;
+      let y = GROUND_Y;
+      if (ap < 1) y += Math.abs(Math.sin((lt - 6) * 6)) * 0.008;
+      if (fight > 0) y = GROUND_Y + Math.abs(Math.sin(fight * 5 + ph)) * 0.015;
+      fig.mesh.visible = fadeAll > 0.01;
+      fig.mat.opacity = fadeAll;
+      fig.mesh.position.set(x, y + fig.h / 2, 0.02);
+      fig.tex.offset.x = (Math.floor(local * 8) % fig.frames) / fig.frames;
+      shadow.visible = fig.mesh.visible;
+      shadow.position.set(x, GROUND_Y + 0.01, 0.005);
+      shadow.material.opacity = fadeAll * 0.9;
+    }
+
+    // Snowball fight from 8s to 13.8s
+    for (const b of balls) {
+      if (fight < 0 || lt > 13.8) { b.mesh.visible = false; continue; }
+      const bt = fight - b.delay;
+      if (bt < 0) { b.mesh.visible = false; continue; }
+      const p = (bt % b.dur) / b.dur;
+      const x = b.from[0] + (b.to[0] - b.from[0]) * p;
+      const y = b.from[1] + (b.to[1] - b.from[1]) * p + Math.sin(Math.PI * p) * b.arc;
+      b.mesh.visible = true;
+      b.mesh.position.set(x, y, 0.035);
+      b.mesh.material.opacity = Math.sin(Math.PI * Math.min(1, p * 1.15));
+    }
+  };
+}
+
 // ---------- Scene 5: village smoke + twinkling windows (targets 8 & 9, portrait) ----------
 function buildVillageScene(anchor) {
   const H = 4 / 3;
@@ -1037,8 +1182,8 @@ async function startAR() {
     buildPenguinSkateScene(mindarThree.addAnchor(5)),
     buildFoxDanceScene(mindarThree.addAnchor(6)),
     buildFoxDanceScene(mindarThree.addAnchor(7)),
-    buildVillageScene(mindarThree.addAnchor(8)),
-    buildVillageScene(mindarThree.addAnchor(9)),
+    buildVillageFamilyScene(mindarThree.addAnchor(8)),
+    buildVillageFamilyScene(mindarThree.addAnchor(9)),
     buildElegantScene(mindarThree.addAnchor(10), 0xffd882),
     buildElegantScene(mindarThree.addAnchor(11), 0xffd882),
     buildElegantScene(mindarThree.addAnchor(12), 0xffb080),
