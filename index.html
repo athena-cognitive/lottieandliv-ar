@@ -808,7 +808,8 @@ function buildFoxDanceScene(anchor) {
   }));
   anchor.group.add(snow);
 
-  // Snow first (2s), then the dancers fade in and the music starts.
+  // The dancers start the instant the card is found (a delay reads as "not
+  // working"); the snow starts with them and builds while they dance.
   let foundAt = null, pendingStart = false, musicOn = false;
   anchor.onTargetFound = () => { hint.style.display = 'none'; pendingStart = true; };
   anchor.onTargetLost = () => {
@@ -835,11 +836,10 @@ function buildFoxDanceScene(anchor) {
     if (foundAt === null) { deer.visible = false; fox.visible = false; return; }
 
     const local = t - foundAt;
-    const fade = Math.min(1, Math.max(0, (local - 2.0) / 0.8));
-    if (fade <= 0) { deer.visible = false; fox.visible = false; return; }
     if (!musicOn) { musicBox.acquire(); musicOn = true; }
-
-    const d = local - 2.0;
+    snow.material.opacity = 0.35 + 0.6 * Math.min(1, local / 1.5);
+    const fade = Math.min(1, local / 0.4);
+    const d = local;
     const bounce = Math.abs(Math.sin(Math.PI * d / BEAT)) * 0.012;
     deer.visible = true; fox.visible = true;
     deerMat.opacity = fade; foxMat.opacity = fade;
