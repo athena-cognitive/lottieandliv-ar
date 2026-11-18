@@ -637,12 +637,14 @@ function buildVillageFamilyScene(anchor) {
   dad.mesh.scale.x = -1; // face left, toward the family
 
   const GIRLS_X = -0.08, MOM_X = -0.34, DAD_X = 0.30;
-  girls.mesh.position.set(GIRLS_X, GROUND_Y + girls.h / 2, 0.02);
+  // Each figure gets its own depth: overlapping transparent planes at the same
+  // z flicker where they overlap (the toddler blinked when Dad arrived).
+  girls.mesh.position.set(GIRLS_X, GROUND_Y + girls.h / 2, 0.03);
   mom.mesh.position.set(-0.80, GROUND_Y + mom.h / 2, 0.02);
-  dad.mesh.position.set(0.82, GROUND_Y + dad.h / 2, 0.02);
+  dad.mesh.position.set(0.82, GROUND_Y + dad.h / 2, 0.01);
 
   const girlsShadow = makeShadow(0.36, 0.07);
-  girlsShadow.position.set(GIRLS_X, GROUND_Y + 0.01, 0.005);
+  girlsShadow.position.set(GIRLS_X, GROUND_Y + 0.01, 0.006);
   const momShadow = makeShadow(0.22, 0.06);
   const dadShadow = makeShadow(0.22, 0.06);
   for (const s of [girlsShadow, momShadow, dadShadow]) { s.visible = false; anchor.group.add(s); }
@@ -726,7 +728,7 @@ function buildVillageFamilyScene(anchor) {
     girlsShadow.material.opacity = gFade * 0.9;
 
     // The parents arrive at 6s, sliding in from the edges
-    for (const [fig, finalX, startX, shadow, ph] of [[mom, MOM_X, -0.80, momShadow, 0], [dad, DAD_X, 0.82, dadShadow, 1.3]]) {
+    for (const [fig, finalX, startX, shadow, ph, figZ, shZ] of [[mom, MOM_X, -0.80, momShadow, 0, 0.02, 0.005], [dad, DAD_X, 0.82, dadShadow, 1.3, 0.01, 0.004]]) {
       if (lt < 6) { fig.mesh.visible = false; shadow.visible = false; continue; }
       const ap = Math.min(1, (lt - 6) / 2);
       const ease = 1 - (1 - ap) * (1 - ap);
@@ -736,10 +738,10 @@ function buildVillageFamilyScene(anchor) {
       if (fight > 0) y = GROUND_Y + Math.abs(Math.sin(fight * 5 + ph)) * 0.015;
       fig.mesh.visible = fadeAll > 0.01;
       fig.mat.opacity = fadeAll;
-      fig.mesh.position.set(x, y + fig.h / 2, 0.02);
+      fig.mesh.position.set(x, y + fig.h / 2, figZ);
       fig.tex.offset.x = (Math.floor(local * 8) % fig.frames) / fig.frames;
       shadow.visible = fig.mesh.visible;
-      shadow.position.set(x, GROUND_Y + 0.01, 0.005);
+      shadow.position.set(x, GROUND_Y + 0.01, shZ);
       shadow.material.opacity = fadeAll * 0.9;
     }
 
@@ -752,7 +754,7 @@ function buildVillageFamilyScene(anchor) {
       const x = b.from[0] + (b.to[0] - b.from[0]) * p;
       const y = b.from[1] + (b.to[1] - b.from[1]) * p + Math.sin(Math.PI * p) * b.arc;
       b.mesh.visible = true;
-      b.mesh.position.set(x, y, 0.035);
+      b.mesh.position.set(x, y, 0.045);
       b.mesh.material.opacity = Math.sin(Math.PI * Math.min(1, p * 1.15));
     }
   };
