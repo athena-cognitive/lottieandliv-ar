@@ -394,7 +394,7 @@ function buildPenguinScene(anchor) {
 // belly slide, to "We Wish You a Merry Christmas". Starts the instant the card
 // is found — no intro wait.
 function buildPenguinSkateScene(anchor) {
-  const SK_FRAMES = 15, SLI_FRAMES = 8, LOOP = 12;
+  const SK_FRAMES = 15, SLI_FRAMES = 23, LOOP = 12;
   const SKATE_Y = -0.42, SLIDE_Y = -0.48;
 
   function makeSkater(h) {
@@ -408,11 +408,11 @@ function buildPenguinSkateScene(anchor) {
     return { tex, mat, mesh, h };
   }
   function makeSlider(h) {
-    const tex = new THREE.TextureLoader().load('./sprite-penguin-slide.png');
+    const tex = new THREE.TextureLoader().load('./sprite-penguin-slide2.png');
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.repeat.set(1 / SLI_FRAMES, 1);
     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(h * (793 / 448), h), mat);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(h * (794 / 448), h), mat);
     mesh.visible = false;
     anchor.group.add(mesh);
     return { tex, mat, mesh, h };
