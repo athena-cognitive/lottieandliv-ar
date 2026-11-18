@@ -389,6 +389,146 @@ function buildPenguinScene(anchor) {
   };
 }
 
+// ---------- Scene 3b: two penguins ice-skate, jump and slide (targets 4 & 5, portrait) ----------
+// Flor's design (Nov 18): penguins ice skating while it snows, with jumps and a
+// belly slide, to "We Wish You a Merry Christmas". Starts the instant the card
+// is found — no intro wait.
+function buildPenguinSkateScene(anchor) {
+  const SK_FRAMES = 15, SLI_FRAMES = 8, LOOP = 12;
+  const SKATE_Y = -0.42, SLIDE_Y = -0.48;
+
+  function makeSkater(h) {
+    const tex = new THREE.TextureLoader().load('./sprite-penguin-skate.png');
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.repeat.set(1 / SK_FRAMES, 1);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(h * (439 / 448), h), mat);
+    mesh.visible = false;
+    anchor.group.add(mesh);
+    return { tex, mat, mesh, h };
+  }
+  function makeSlider(h) {
+    const tex = new THREE.TextureLoader().load('./sprite-penguin-slide.png');
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.repeat.set(1 / SLI_FRAMES, 1);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(h * (793 / 448), h), mat);
+    mesh.visible = false;
+    anchor.group.add(mesh);
+    return { tex, mat, mesh, h };
+  }
+
+  const penguins = [
+    { sk: makeSkater(0.32), sl: makeSlider(0.19), shadow: makeShadow(0.26, 0.08), phase: 0, z: 0.02 },
+    { sk: makeSkater(0.27), sl: makeSlider(0.16), shadow: makeShadow(0.22, 0.07), phase: 0.55, z: 0.015 }
+  ];
+  for (const p of penguins) { p.shadow.visible = false; anchor.group.add(p.shadow); }
+
+  const SNOW = 130;
+  const pos = new Float32Array(SNOW * 3);
+  const speed = new Float32Array(SNOW);
+  for (let i = 0; i < SNOW; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 1.0;
+    pos[i * 3 + 1] = (Math.random() - 0.5) * 1.5;
+    pos[i * 3 + 2] = 0.01 + Math.random() * 0.05;
+    speed[i] = 0.03 + Math.random() * 0.06;
+  }
+  const snowGeo = new THREE.BufferGeometry();
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+    map: makeFlakeTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.85)'),
+    size: 0.016, transparent: true, depthWrite: false, opacity: 0.35
+  }));
+  anchor.group.add(snow);
+
+  let foundAt = null, pendingStart = false, musicOn = false;
+  anchor.onTargetFound = () => { hint.style.display = 'none'; pendingStart = true; };
+  anchor.onTargetLost = () => {
+    hint.style.display = 'block';
+    foundAt = null;
+    if (musicOn) { musicBox.release(); musicOn = false; }
+  };
+
+  function updatePenguin(p, lt) {
+    const sk = p.sk, sl = p.sl, trail = p.phase * 0.28;
+    if (lt < 7.6) {
+      // Skating across the pond, with a spin jump in the middle
+      const x = -0.62 + (lt / 7.6) * 0.92 - trail;
+      let y = SKATE_Y, spin = 0;
+      if (lt > 3.4 && lt < 4.4) {
+        const jp = lt - 3.4;
+        y += Math.sin(Math.PI * jp) * 0.17;
+        spin = jp * Math.PI * 2;
+      }
+      sk.mesh.visible = true; sl.mesh.visible = false;
+      sk.mesh.position.set(x, y + sk.h / 2, p.z);
+      sk.mesh.rotation.set(0, spin, Math.sin(lt * 2.2) * 0.05);
+      sk.tex.offset.x = (Math.floor(lt * 9) % SK_FRAMES) / SK_FRAMES;
+      sk.mat.opacity = Math.min(1, lt / 0.3);
+      p.shadow.visible = true;
+      p.shadow.position.set(x, SKATE_Y + 0.01, 0.005);
+      p.shadow.material.opacity = sk.mat.opacity * 0.9 * (1 - (y - SKATE_Y));
+    } else if (lt < 9.8) {
+      // The big belly slide
+      const q = (lt - 7.6) / 2.2;
+      const x = 0.30 - trail + q * q * 0.30;
+      sk.mesh.visible = false; sl.mesh.visible = true;
+      sl.mesh.position.set(x, SLIDE_Y + sl.h / 2 + Math.sin(lt * 7) * 0.005, p.z);
+      sl.mesh.rotation.set(0, 0, 0);
+      sl.tex.offset.x = (Math.floor(lt * 10) % SLI_FRAMES) / SLI_FRAMES;
+      sl.mat.opacity = 1;
+      p.shadow.visible = true;
+      p.shadow.position.set(x, SLIDE_Y + 0.01, 0.005);
+      p.shadow.material.opacity = 0.9;
+    } else if (lt < 11.0) {
+      // Pop up and celebrate
+      const hp = lt - 9.8;
+      const x = 0.60 - trail;
+      sk.mesh.visible = true; sl.mesh.visible = false;
+      sk.mesh.position.set(x, SKATE_Y + sk.h / 2 + Math.abs(Math.sin(hp * Math.PI * 2)) * 0.05, p.z);
+      sk.mesh.rotation.set(0, 0, Math.sin(lt * 5) * 0.04);
+      sk.tex.offset.x = (Math.floor(lt * 5) % SK_FRAMES) / SK_FRAMES;
+      sk.mat.opacity = 1;
+      p.shadow.visible = true;
+      p.shadow.position.set(x, SKATE_Y + 0.01, 0.005);
+      p.shadow.material.opacity = 0.9;
+    } else {
+      const fade = 1 - (lt - 11.0);
+      sk.mat.opacity = Math.max(0, fade);
+      sk.mesh.visible = fade > 0.01;
+      p.shadow.visible = fade > 0.01;
+      p.shadow.material.opacity = Math.max(0, fade) * 0.9;
+    }
+  }
+
+  return (t, dt) => {
+    const arr = snowGeo.attributes.position.array;
+    for (let i = 0; i < SNOW; i++) {
+      arr[i * 3 + 1] -= speed[i] * dt;
+      arr[i * 3] += Math.sin(t * 1.5 + i) * 0.0006;
+      if (arr[i * 3 + 1] < -0.75) {
+        arr[i * 3 + 1] = 0.75;
+        arr[i * 3] = (Math.random() - 0.5) * 1.0;
+      }
+    }
+    snowGeo.attributes.position.needsUpdate = true;
+
+    if (pendingStart) { foundAt = t; pendingStart = false; }
+    if (foundAt === null) return;
+    const local = t - foundAt;
+    if (!musicOn) { musicBox.acquire('wish'); musicOn = true; }
+    snow.material.opacity = 0.35 + 0.6 * Math.min(1, local / 1.5);
+    for (const p of penguins) {
+      const lt = local - p.phase;
+      if (lt < 0) {
+        p.sk.mesh.visible = false; p.sl.mesh.visible = false; p.shadow.visible = false;
+      } else {
+        updatePenguin(p, lt % LOOP);
+      }
+    }
+  };
+}
+
 // ---------- Scene 4: fox runs through the forest (targets 6 & 7, portrait) ----------
 function buildFoxScene(anchor) {
   const FRAMES = 15, LOOP = 9, RUN = 5.5, FEET_Y = -0.30;
@@ -680,21 +820,30 @@ function buildPhotoFrameScene(anchor) {
   };
 }
 
-// ---------- Music box: Jingle Bells (public domain, 1857), played by the page itself ----------
-// No audio file and no recording: the melody is synthesized note by note with WebAudio,
-// so there is no recording copyright. Melody: James Lord Pierpont, public domain.
+// ---------- Music box: public-domain carols, played by the page itself ----------
+// No audio file and no recording: each melody is synthesized note by note with WebAudio,
+// so there is no recording copyright. Jingle Bells: James Lord Pierpont, 1857, public domain.
+// We Wish You a Merry Christmas: traditional English carol, public domain.
 const musicBox = {
-  ctx: null, master: null, timer: null, idx: 0, nextTime: 0, holders: 0,
+  ctx: null, master: null, timer: null, idx: 0, nextTime: 0, holders: 0, song: 'jingle',
   BEAT: 0.46,
-  // [midi note, beats] — Jingle Bells chorus, music-box octave
-  NOTES: [
-    [76,1],[76,1],[76,2], [76,1],[76,1],[76,2], [76,1],[79,1],[72,1.5],[74,0.5],[76,4],
-    [77,1],[77,1],[77,1.5],[77,0.5], [77,1],[76,1],[76,1],[76,0.5],[76,0.5],
-    [76,1],[74,1],[74,1],[76,1], [74,2],[79,2],
-    [76,1],[76,1],[76,2], [76,1],[76,1],[76,2], [76,1],[79,1],[72,1.5],[74,0.5],[76,4],
-    [77,1],[77,1],[77,1.5],[77,0.5], [77,1],[76,1],[76,1],[76,0.5],[76,0.5],
-    [76,1],[74,1],[74,1],[76,1], [72,4]
-  ],
+  // [midi note, beats], music-box octave
+  SONGS: {
+    jingle: [
+      [76,1],[76,1],[76,2], [76,1],[76,1],[76,2], [76,1],[79,1],[72,1.5],[74,0.5],[76,4],
+      [77,1],[77,1],[77,1.5],[77,0.5], [77,1],[76,1],[76,1],[76,0.5],[76,0.5],
+      [76,1],[74,1],[74,1],[76,1], [74,2],[79,2],
+      [76,1],[76,1],[76,2], [76,1],[76,1],[76,2], [76,1],[79,1],[72,1.5],[74,0.5],[76,4],
+      [77,1],[77,1],[77,1.5],[77,0.5], [77,1],[76,1],[76,1],[76,0.5],[76,0.5],
+      [76,1],[74,1],[74,1],[76,1], [72,4]
+    ],
+    wish: [
+      [79,1],[84,1],[84,0.5],[86,0.5],[84,0.5],[83,0.5],[81,1],[81,1],
+      [86,1],[86,1],[88,0.5],[86,0.5],[84,0.5],[83,0.5],[79,1],[79,1],
+      [88,1],[88,1],[89,0.5],[88,0.5],[86,0.5],[84,0.5],[83,1],[83,1],
+      [84,1],[84,1],[86,1],[79,1],[88,1],[90,3]
+    ]
+  },
   init(ctx) {
     this.ctx = ctx;
     this.master = ctx.createGain();
@@ -716,16 +865,18 @@ const musicBox = {
     }
   },
   schedule() {
+    const notes = this.SONGS[this.song];
     while (this.nextTime < this.ctx.currentTime + 0.3) {
-      const [midi, beats] = this.NOTES[this.idx];
+      const [midi, beats] = notes[this.idx];
       this.playNote(midi, this.nextTime);
       this.nextTime += beats * this.BEAT;
-      this.idx = (this.idx + 1) % this.NOTES.length;
+      this.idx = (this.idx + 1) % notes.length;
       if (this.idx === 0) this.nextTime += this.BEAT; // breath between loops
     }
   },
-  acquire() {
+  acquire(song) {
     if (!this.ctx) return;
+    if (song && this.SONGS[song]) this.song = song;
     this.holders++;
     if (this.holders > 1) return;
     if (this.ctx.state === 'suspended') this.ctx.resume();
@@ -838,7 +989,7 @@ function buildFoxDanceScene(anchor) {
     if (foundAt === null) { deer.visible = false; fox.visible = false; return; }
 
     const local = t - foundAt;
-    if (!musicOn) { musicBox.acquire(); musicOn = true; }
+    if (!musicOn) { musicBox.acquire('jingle'); musicOn = true; }
     snow.material.opacity = 0.35 + 0.6 * Math.min(1, local / 1.5);
     const fade = Math.min(1, local / 0.4);
     const d = local;
@@ -882,8 +1033,8 @@ async function startAR() {
     buildReindeerScene(mindarThree.addAnchor(1)),
     buildSantaScene(mindarThree.addAnchor(2)),
     buildSantaScene(mindarThree.addAnchor(3)),
-    buildPenguinScene(mindarThree.addAnchor(4)),
-    buildPenguinScene(mindarThree.addAnchor(5)),
+    buildPenguinSkateScene(mindarThree.addAnchor(4)),
+    buildPenguinSkateScene(mindarThree.addAnchor(5)),
     buildFoxDanceScene(mindarThree.addAnchor(6)),
     buildFoxDanceScene(mindarThree.addAnchor(7)),
     buildVillageScene(mindarThree.addAnchor(8)),
