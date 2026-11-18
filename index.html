@@ -44,6 +44,7 @@
 <div class="panel" id="start-panel">
   <h1>Your card is magic ✨</h1>
   <p>Point your phone camera at the <b>Playful Reindeer</b> card and watch — the reindeer comes alive and runs right across it.</p>
+  <p style="font-size:14px; opacity:.85;">Works with both versions of the card — with the code, and the clean one without.</p>
   <button id="start-btn">Start the magic</button>
   <p style="font-size:13px; opacity:.75; margin-top:18px;">Your camera is only used to see the card. Nothing is recorded or sent anywhere.</p>
 </div>
@@ -88,16 +89,9 @@ document.getElementById('start-btn').addEventListener('click', async () => {
   }
 });
 
-async function startAR() {
-  const mindarThree = new MindARThree({
-    container: document.getElementById('ar-container'),
-    imageTargetSrc: './targets.mind',
-    uiLoading: 'no', uiScanning: 'no', uiError: 'no',
-    maxTrack: 1,
-  });
-  const { renderer, scene, camera } = mindarThree;
-  const anchor = mindarThree.addAnchor(0);
-
+// Build one copy of the scene (reindeer + shadow + snow) inside an anchor.
+// Returns the pieces the animation loop needs to move.
+function buildScene(anchor) {
   // --- Reindeer sprite ---
   const tex = new THREE.TextureLoader().load('./sprite.png');
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -151,6 +145,21 @@ async function startAR() {
   anchor.onTargetFound = () => { hint.style.display = 'none'; };
   anchor.onTargetLost = () => { hint.style.display = 'block'; };
 
+  return { tex, deer, deerMat, shadow, snowGeo, speed, SNOW };
+}
+
+async function startAR() {
+  const mindarThree = new MindARThree({
+    container: document.getElementById('ar-container'),
+    imageTargetSrc: './targets.mind',
+    uiLoading: 'no', uiScanning: 'no', uiError: 'no',
+    maxTrack: 1,
+  });
+  const { renderer, scene, camera } = mindarThree;
+
+  // Target 0 = the card with the code; target 1 = the clean card without it.
+  const scenes = [buildScene(mindarThree.addAnchor(0)), buildScene(mindarThree.addAnchor(1))];
+
   await mindarThree.start();
   const clock = new THREE.Clock();
   renderer.setAnimationLoop(() => {
@@ -163,25 +172,29 @@ async function startAR() {
     const gallops = 3;                                          // gallop cycles per crossing
     const phase = (t / (CROSS_SECONDS / gallops)) % 1;
     const frame = Math.floor(phase * FRAMES) % FRAMES;
-    tex.offset.x = frame / FRAMES;
     const bob = Math.abs(Math.sin(phase * Math.PI * 2)) * 0.018;
-    deer.position.x = x;
-    deer.position.y = -0.10 + bob;
-    deerMat.opacity = Math.min(1, Math.min(cycle, 1 - cycle) * 8 + 0.15);
-    shadow.position.x = x;
-    shadow.material.opacity = deerMat.opacity;
+    const opacity = Math.min(1, Math.min(cycle, 1 - cycle) * 8 + 0.15);
 
-    // Snowfall
-    const arr = snowGeo.attributes.position.array;
-    for (let i = 0; i < SNOW; i++) {
-      arr[i * 3 + 1] -= speed[i] * dt;
-      arr[i * 3] += Math.sin(t * 1.5 + i) * 0.0006;
-      if (arr[i * 3 + 1] < -0.34) {
-        arr[i * 3 + 1] = 0.34;
-        arr[i * 3] = (Math.random() - 0.5) * 1.0;
+    for (const s of scenes) {
+      s.tex.offset.x = frame / FRAMES;
+      s.deer.position.x = x;
+      s.deer.position.y = -0.10 + bob;
+      s.deerMat.opacity = opacity;
+      s.shadow.position.x = x;
+      s.shadow.material.opacity = opacity;
+
+      // Snowfall
+      const arr = s.snowGeo.attributes.position.array;
+      for (let i = 0; i < s.SNOW; i++) {
+        arr[i * 3 + 1] -= s.speed[i] * dt;
+        arr[i * 3] += Math.sin(t * 1.5 + i) * 0.0006;
+        if (arr[i * 3 + 1] < -0.34) {
+          arr[i * 3 + 1] = 0.34;
+          arr[i * 3] = (Math.random() - 0.5) * 1.0;
+        }
       }
+      s.snowGeo.attributes.position.needsUpdate = true;
     }
-    snowGeo.attributes.position.needsUpdate = true;
 
     renderer.render(scene, camera);
   });
