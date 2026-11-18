@@ -752,7 +752,8 @@ function buildFoxDanceScene(anchor) {
   const deerMat = new THREE.MeshBasicMaterial({ map: deerTex, transparent: true, side: THREE.DoubleSide, opacity: 0 });
   const deerH = 0.36, deerW = deerH * (437 / 448);
   const deer = new THREE.Mesh(new THREE.PlaneGeometry(deerW, deerH), deerMat);
-  deer.position.set(-0.19, FEET_Y + deerH / 2, 0.02);
+  deer.position.set(0.20, FEET_Y + deerH / 2, 0.02);
+  deer.scale.x = -1; // face left, toward the fox — matches the card's painting (deer on the right)
   deer.visible = false;
   anchor.group.add(deer);
 
@@ -762,16 +763,17 @@ function buildFoxDanceScene(anchor) {
   const foxMat = new THREE.MeshBasicMaterial({ map: foxTex, transparent: true, side: THREE.DoubleSide, opacity: 0 });
   const foxH = 0.30, foxW = foxH * (572 / 448);
   const fox = new THREE.Mesh(new THREE.PlaneGeometry(foxW, foxH), foxMat);
-  fox.position.set(0.20, FEET_Y + foxH / 2, 0.02);
+  fox.position.set(-0.19, FEET_Y + foxH / 2, 0.02);
+  fox.scale.x = -1; // face right, toward the deer — matches the card's painting (fox on the left)
   fox.visible = false;
   anchor.group.add(fox);
 
   const deerShadow = makeShadow(0.30, 0.08);
-  deerShadow.position.set(-0.19, FEET_Y + 0.01, 0.005);
+  deerShadow.position.set(0.20, FEET_Y + 0.01, 0.005);
   deerShadow.material.opacity = 0;
   anchor.group.add(deerShadow);
   const foxShadow = makeShadow(0.30, 0.08);
-  foxShadow.position.set(0.20, FEET_Y + 0.01, 0.005);
+  foxShadow.position.set(-0.19, FEET_Y + 0.01, 0.005);
   foxShadow.material.opacity = 0;
   anchor.group.add(foxShadow);
 
