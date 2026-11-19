@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Charlotte's Thank-You — Watch the card come alive</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #2e1a30; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  #ar-container { position: fixed; inset: 0; }
+  #ar-container canvas { display: block; }
+  .panel {
+    position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, #4a2c4d, #2e1a30); color: #fff; text-align: center; padding: 24px; z-index: 10;
+  }
+  .panel h1 { font-size: 26px; margin: 0 0 8px; color: #f3c969; }
+  .panel p { font-size: 17px; line-height: 1.45; margin: 6px 0; max-width: 340px; }
+  #start-btn {
+    margin-top: 22px; font-size: 19px; font-weight: 700; color: #2e1a30; background: #f3c969;
+    border: none; border-radius: 999px; padding: 15px 34px; cursor: pointer; box-shadow: 0 4px 18px rgba(0,0,0,.35);
+  }
+  #start-btn:active { transform: scale(.97); }
+  .hint {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 5;
+    background: rgba(0,0,0,.55); color: #fff; font-size: 15px; padding: 10px 18px; border-radius: 999px;
+    display: none; text-align: center; max-width: 86vw;
+  }
+  .brand { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 5; color: rgba(255,255,255,.85);
+    font-size: 13px; letter-spacing: .12em; text-transform: uppercase; display: none; }
+  #error-box { display: none; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="ar-container"></div>
+
+<div class="panel" id="start-panel">
+  <h1>A card from Charlotte ✨</h1>
+  <p>Point your phone camera at <b>your storybook card</b> and watch Charlotte's thank-you come alive.</p>
+  <button id="start-btn">Start the magic</button>
+  <p style="font-size:13px; opacity:.75; margin-top:18px;">Your camera is only used to see the card. Nothing is recorded or sent anywhere.</p>
+</div>
+
+<div class="panel" id="error-box">
+  <h1>Hmm, the magic got stuck</h1>
+  <p id="error-text">Something went wrong starting the camera.</p>
+  <p style="font-size:14px; opacity:.8;">Tip: open this page in Safari (iPhone) or Chrome (Android), allow camera access, and use good light.</p>
+</div>
+
+<div class="brand" id="brand">Charlotte's Thank-You</div>
+<div class="hint" id="hint">Point your camera at the card 📖</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { MindARThree } from 'mindar-image-three';
+
+const startPanel = document.getElementById('start-panel');
+const hint = document.getElementById('hint');
+const brand = document.getElementById('brand');
+const errorBox = document.getElementById('error-box');
+const errorText = document.getElementById('error-text');
+
+function showError(msg) {
+  errorText.textContent = msg;
+  startPanel.style.display = 'none';
+  errorBox.style.display = 'flex';
+}
+
+document.getElementById('start-btn').addEventListener('click', async () => {
+  startPanel.style.display = 'none';
+  hint.style.display = 'block';
+  brand.style.display = 'block';
+  try { await startAR(); }
+  catch (e) { showError('The camera could not start. ' + (e && e.message ? e.message : '')); }
+});
+
+function makeShadow(w, h) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 64;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createRadialGradient(64, 32, 4, 64, 32, 60);
+  grad.addColorStop(0, 'rgba(30,10,20,0.42)');
+  grad.addColorStop(1, 'rgba(30,10,20,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 64);
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })
+  );
+  m.material.opacity = 0;
+  return m;
+}
+
+// ---------- Music box: "Au clair de la lune", played by the page itself ----------
+// No audio file and no recording: the melody is synthesized note by note with
+// WebAudio, so there is no recording copyright. "Au clair de la lune" is a
+// traditional French song, public domain.
+const musicBox = {
+  ctx: null, master: null, timer: null, idx: 0, nextTime: 0, holders: 0, song: 'lune',
+  BEAT: 0.52,
+  SONGS: {
+    lune: [
+      [79,1],[79,1],[79,1],[81,1],[83,2],[81,2],[79,1],[83,1],[81,1],[79,3],
+      [81,1],[81,1],[81,1],[81,1],[76,2],[76,2],[81,1],[84,1],[83,1],[81,1],[79,3],
+      [79,1],[79,1],[79,1],[81,1],[83,2],[81,2],[79,1],[83,1],[81,1],[79,3]
+    ]
+  },
+  init(ctx) {
+    this.ctx = ctx;
+    this.master = ctx.createGain();
+    this.master.gain.value = 0.30; // gentle, under the voices
+    this.master.connect(ctx.destination);
+  },
+  playNote(midi, when) {
+    const f = 440 * Math.pow(2, (midi - 69) / 12);
+    for (const [mult, vol] of [[1, 0.5], [3, 0.12], [4, 0.05]]) {
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = f * mult;
+      g.gain.setValueAtTime(0, when);
+      g.gain.linearRampToValueAtTime(vol, when + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + 1.3);
+      osc.connect(g); g.connect(this.master);
+      osc.start(when); osc.stop(when + 1.35);
+    }
+  },
+  schedule() {
+    const notes = this.SONGS[this.song];
+    while (this.nextTime < this.ctx.currentTime + 0.3) {
+      const [midi, beats] = notes[this.idx];
+      this.playNote(midi, this.nextTime);
+      this.nextTime += beats * this.BEAT;
+      this.idx = (this.idx + 1) % notes.length;
+      if (this.idx === 0) this.nextTime += this.BEAT * 2; // breath between loops
+    }
+  },
+  acquire(song) {
+    if (!this.ctx) return;
+    if (song && this.SONGS[song]) this.song = song;
+    this.holders++;
+    if (this.holders > 1) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    this.idx = 0;
+    this.nextTime = this.ctx.currentTime + 0.08;
+    this.timer = setInterval(() => this.schedule(), 110);
+  },
+  release() {
+    if (!this.ctx) return;
+    this.holders = Math.max(0, this.holders - 1);
+    if (this.holders === 0 && this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  }
+};
+
+// ---------- Dialogue: Charlotte speaks English, Miss Stéphanie speaks French ----------
+// [seconds from scene start, audio file]
+const LINES = [
+  [3.8, './line1-charlotte.mp3'],   // "Miss Stephanie, the book is broken. Can we fix it together?"
+  [8.1, './line2-stephanie.mp3'],   // « Bien sûr, ma chérie. Allons le réparer ensemble. »
+  [14.6, './line3-stephanie.mp3'],  // « Voilà le scotch ! »
+  [17.8, './line4-charlotte.mp3'],  // "I hold it, you tape it."
+  [24.4, './line5-stephanie.mp3'],  // « Il était une fois… »
+];
+const dialogue = {
+  els: [],
+  init() {
+    this.els = LINES.map(([at, src]) => {
+      const el = new Audio(src);
+      el.preload = 'auto';
+      // Unlock inside the Start-button tap so lines may play later.
+      try {
+        const p = el.play();
+        if (p && p.then) p.then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
+      } catch (e) { /* no audio */ }
+      return el;
+    });
+  },
+  play(i) {
+    const el = this.els[i];
+    if (!el) return;
+    try { el.currentTime = 0; el.play().catch(() => {}); } catch (e) { /* no audio */ }
+  },
+  stopAll() {
+    for (const el of this.els) {
+      try { el.pause(); el.currentTime = 0; } catch (e) { /* no audio */ }
+    }
+  }
+};
+
+// ---------- The Broken Book: Charlotte & Miss Stéphanie (target 0) ----------
+// A true story from the Sun Class: a library book was torn, Charlotte brought
+// it straight to Miss Stéphanie, they fixed it together with tape, and then
+// Miss Stéphanie read it to her. Starts the instant the card is found.
+function buildBrokenBookScene(anchor) {
+  const LOOP = 30, FEET = -0.52;
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+  const ramp = (t, a, b) => clamp01((t - a) / (b - a));
+  const easeOut = q => 1 - Math.pow(1 - q, 3);
+
+  function sprite(url, w, h, z) {
+    const tex = new THREE.TextureLoader().load(url);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, opacity: 0 });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    m.position.z = z;
+    m.visible = false;
+    anchor.group.add(m);
+    return m;
+  }
+
+  // Cozy classroom backdrop
+  const room = sprite('./classroom.jpg', 1.02, 0.68, 0.002);
+  room.position.set(0, 0.13, 0.002);
+
+  const CH = 0.60, CW = CH * (719 / 1405);
+  const charlotte = sprite('./sprite-charlotte-book.webp', CW, CH, 0.02);
+  const charShadow = makeShadow(0.26, 0.075);
+  charShadow.position.set(-0.58, FEET + 0.012, 0.006);
+  anchor.group.add(charShadow);
+
+  const SH = 0.76, SW1 = SH * (1108 / 1970), SW2 = SH * (848 / 2009);
+  const steph = sprite('./sprite-stephanie-stand.webp', SW1, SH, 0.02);
+  const stephTape = sprite('./sprite-stephanie-tape.webp', SW2, SH, 0.02);
+  const stephShadow = makeShadow(0.34, 0.09);
+  stephShadow.position.set(0.24, FEET + 0.012, 0.006);
+  anchor.group.add(stephShadow);
+
+  const FW = 0.94, FH = FW * (872 / 1200);
+  const fix = sprite('./sprite-fix-together.webp', FW, FH, 0.02);
+  fix.position.set(0, -0.56 + FH / 2, 0.02);
+  const RW = 0.94, RH = RW * (884 / 1200);
+  const reading = sprite('./sprite-reading.webp', RW, RH, 0.02);
+  reading.position.set(0, -0.56 + RH / 2, 0.02);
+
+  const all = [room, charlotte, steph, stephTape, fix, reading];
+  let foundAt = null, pendingStart = false, musicOn = false;
+  let played = LINES.map(() => false), prevLocal = 0;
+
+  anchor.onTargetFound = () => { hint.style.display = 'none'; pendingStart = true; };
+  anchor.onTargetLost = () => {
+    hint.style.display = 'block';
+    foundAt = null; pendingStart = false;
+    played = LINES.map(() => false);
+    dialogue.stopAll();
+    if (musicOn) { musicBox.release(); musicOn = false; }
+    for (const m of all) m.visible = false;
+    charShadow.material.opacity = 0; stephShadow.material.opacity = 0;
+  };
+
+  return (t, dt) => {
+    if (pendingStart) { foundAt = t; pendingStart = false; played = LINES.map(() => false); prevLocal = 0; }
+    if (foundAt === null) return;
+    if (!musicOn) { musicBox.acquire('lune'); musicOn = true; }
+
+    const local = (t - foundAt) % LOOP;
+    if (local < prevLocal) played = LINES.map(() => false); // loop restarted
+    prevLocal = local;
+    for (let i = 0; i < LINES.length; i++) {
+      if (!played[i] && local >= LINES[i][0]) { dialogue.play(i); played[i] = true; }
+    }
+
+    const endFade = 1 - ramp(local, 29.3, 30.0);
+
+    // Backdrop rises with the story, instantly
+    room.visible = true;
+    room.material.opacity = ramp(local, 0, 0.4) * endFade;
+
+    // Beat 1 (0-3.5s): Charlotte walks in with the torn book
+    const walk = easeOut(ramp(local, 0, 3.5));
+    const cx = -0.58 + walk * 0.38;
+    const walking = local < 3.5 ? Math.abs(Math.sin(local * 7)) * 0.016 : 0;
+    const charOut = 1 - ramp(local, 16.5, 17.3);
+    charlotte.visible = charOut > 0;
+    charlotte.material.opacity = ramp(local, 0, 0.3) * charOut * endFade;
+    charlotte.position.set(cx, FEET + CH / 2 + walking, 0.02);
+    charlotte.rotation.z = local < 3.5 ? Math.sin(local * 7) * 0.02 : Math.sin(local * 1.3) * 0.006;
+    charShadow.position.x = cx;
+    charShadow.material.opacity = charlotte.material.opacity * 0.9;
+
+    // Beat 2 (4.5s): Miss Stéphanie appears, welcoming
+    const stIn = ramp(local, 4.5, 5.3), stOut = ramp(local, 11.5, 12.5);
+    const stOp = stIn * (1 - stOut);
+    steph.visible = stOp > 0;
+    steph.material.opacity = stOp * endFade;
+    steph.position.set(0.36 - stIn * 0.12 + stOut * 0.32, FEET + SH / 2 + Math.sin(local * 1.4) * 0.004, 0.02);
+    stephShadow.material.opacity = Math.max(stOp, ramp(local, 13.5, 14.5) * (1 - ramp(local, 16.5, 17.3))) * endFade * 0.9;
+    stephShadow.position.x = 0.24 + stOut * 0.32;
+
+    // Beat 3 (13.5s): she is back with the tape
+    const tpIn = ramp(local, 13.5, 14.5), tpOut = ramp(local, 16.5, 17.3);
+    const tpOp = tpIn * (1 - tpOut);
+    stephTape.visible = tpOp > 0;
+    stephTape.material.opacity = tpOp * endFade;
+    stephTape.position.set(0.56 - tpIn * 0.32, FEET + SH / 2 + Math.sin(local * 1.4 + 1) * 0.004, 0.02);
+
+    // Beat 4 (16.8s): side by side, fixing the book together
+    const fxOp = ramp(local, 16.8, 17.6) * (1 - ramp(local, 22.8, 23.6));
+    fix.visible = fxOp > 0;
+    fix.material.opacity = fxOp * endFade;
+    fix.rotation.z = Math.sin(local * 0.9) * 0.006;
+
+    // Beat 5 (23.2s): the book is whole — story time
+    const rdOp = ramp(local, 23.2, 24.2);
+    reading.visible = rdOp > 0;
+    reading.material.opacity = rdOp * endFade;
+    reading.rotation.z = Math.sin(local * 0.7) * 0.005;
+  };
+}
+
+async function startAR() {
+  const mindarThree = new MindARThree({
+    container: document.getElementById('ar-container'),
+    imageTargetSrc: './targets-teachers.mind',
+    uiLoading: 'no', uiScanning: 'no', uiError: 'no',
+    maxTrack: 1,
+  });
+  const { renderer, scene, camera } = mindarThree;
+
+  // Create the audio context now, inside the Start-button tap, so the
+  // music box is allowed to make sound later when the card is found.
+  try { musicBox.init(new (window.AudioContext || window.webkitAudioContext)()); } catch (e) { /* no audio */ }
+  dialogue.init();
+
+  const updaters = [
+    buildBrokenBookScene(mindarThree.addAnchor(0)),
+  ];
+
+  await mindarThree.start();
+  const clock = new THREE.Clock();
+  renderer.setAnimationLoop(() => {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const t = clock.elapsedTime;
+    for (const u of updaters) u(t, dt);
+    renderer.render(scene, camera);
+  });
+}
+</script>
+</body>
+</html>
