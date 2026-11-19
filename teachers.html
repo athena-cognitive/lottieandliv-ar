@@ -190,6 +190,7 @@ function makeDialogue(src) {
 const dialogue = makeDialogue('./dialogue-track.mp3?v=13');
 const dialogueZelie = makeDialogue('./dialogue-track-zelie.mp3?v=13');
 const dialogueAbigail = makeDialogue('./dialogue-track-abigail.mp3?v=15');
+const dialogueIsin = makeDialogue('./dialogue-track-isin.mp3?v=18');
 
 
 // ---------- One card at a time ----------
@@ -750,10 +751,194 @@ function buildRainScene(anchor) {
   };
 }
 
+// ---------- Madame Işın and the Clothes Loto: Charlotte & Madame Işın (target 3) ----------
+// A true moment from Madame Işın's own Toddle post (Nov 4): Charlotte playing
+// the clothes loto in class. Madame Işın watches and lets her try alone; when
+// Charlotte hesitates she gives one gentle instruction — look carefully, the
+// colors must match — and Charlotte finds the yellow hat all by herself.
+// Bilingual: Charlotte speaks English, Madame Işın speaks French.
+function buildLotoScene(anchor) {
+  const LOOP = 30, FEET = -0.40;
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+  const ramp = (t, a, b) => clamp01((t - a) / (b - a));
+
+  const stage = new THREE.Group();
+  stage.matrixAutoUpdate = false;
+  const cardFrame = new THREE.Group();
+  cardFrame.position.y = -0.2929;
+  anchor.group.add(cardFrame);
+  cardFrame.add(stage);
+  const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
+  const _rawP = new THREE.Vector3(), _rawQ = new THREE.Quaternion(), _rawS = new THREE.Vector3();
+  const _smP = new THREE.Vector3(), _smQ = new THREE.Quaternion();
+  let _smInit = false;
+  function smoothStage() {
+    _rawM.copy(anchor.group.matrix);
+    _rawM.decompose(_rawP, _rawQ, _rawS);
+    const dPos = _smP.distanceTo(_rawP) / Math.max(1e-6, _rawS.x);
+    const dAng = _smInit ? _smQ.angleTo(_rawQ) : 0;
+    if (!_smInit || dPos > 0.35) {
+      _smP.copy(_rawP); _smQ.copy(_rawQ); _smInit = true;
+    } else if (dPos < 0.0015 && dAng < 0.002) {
+      // micro-jitter only: hold perfectly still
+    } else {
+      _smP.lerp(_rawP, 0.15);
+      _smQ.slerp(_rawQ, 0.15);
+    }
+    _smM.compose(_smP, _smQ, _rawS);
+    _invM.copy(_rawM).invert();
+    stage.matrix.multiplyMatrices(_invM, _smM);
+    stage.matrixWorldNeedsUpdate = true;
+  }
+
+  function sprite(url, w, h, z) {
+    const tex = new THREE.TextureLoader().load(url);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, opacity: 0, depthWrite: false });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    m.position.z = z;
+    m.visible = false;
+    stage.add(m);
+    return m;
+  }
+
+  const room = sprite('./classroom-soft.webp?v=13', 0.94, 1.16, 0.0015);
+  room.position.set(0, -0.02, 0.0015);
+  room.renderOrder = 0;
+
+  const CW2 = 0.80;
+  const search = sprite('./sprite-charlotte-loto-search.webp?v=18', CW2, CW2 / (1698 / 1253), 0.02);
+  search.renderOrder = 2;
+  const found = sprite('./sprite-charlotte-loto-found.webp?v=18', CW2, CW2 / (1640 / 1260), 0.02);
+  found.renderOrder = 2;
+  const tableShadow = makeShadow(0.72, 0.09);
+  tableShadow.position.set(-0.10, FEET + 0.010, 0.006);
+  tableShadow.renderOrder = 1;
+  stage.add(tableShadow);
+
+  const IH = 0.60;
+  const watch = sprite('./sprite-isin-watch.webp?v=18', IH * (979 / 1677), IH, 0.03);
+  watch.renderOrder = 3;
+  const point = sprite('./sprite-isin-point.webp?v=18', IH * (1162 / 1636), IH, 0.03);
+  point.renderOrder = 3;
+  const clap = sprite('./sprite-isin-clap.webp?v=18', IH * (1044 / 1977), IH, 0.03);
+  clap.renderOrder = 3;
+  const isinShadow = makeShadow(0.30, 0.07);
+  isinShadow.position.set(0.34, FEET + 0.010, 0.006);
+  isinShadow.renderOrder = 1;
+  stage.add(isinShadow);
+
+  // Gold stars that burst when the match is found and when Madame Işın claps
+  const starShape = new THREE.Shape();
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? 0.016 : 0.007, a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(a) * r, y = Math.sin(a) * r;
+    if (i === 0) starShape.moveTo(x, y); else starShape.lineTo(x, y);
+  }
+  starShape.closePath();
+  const starGeo = new THREE.ShapeGeometry(starShape);
+  const stars = [];
+  for (let i = 0; i < 10; i++) {
+    const sm = new THREE.Mesh(starGeo, new THREE.MeshBasicMaterial({ color: 0xf2b544, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+    sm.renderOrder = 4;
+    sm.visible = false;
+    stage.add(sm);
+    stars.push({ m: sm, ang: (i / 10) * Math.PI * 2 + 0.4, dist: 0.10 + (i % 4) * 0.035, spin: (i % 3 - 1) * 1.6 });
+  }
+  function starBurst(local, t0) {
+    const p = (local - t0) / 2.6;
+    if (p < 0 || p > 1) { for (const st of stars) if (t0 < 19) st.m.visible = false; return; }
+    const ease = 1 - Math.pow(1 - p, 2);
+    for (const st of stars) {
+      st.m.visible = true;
+      st.m.position.set(0.02 + Math.cos(st.ang) * st.dist * ease, FEET + 0.52 + Math.sin(st.ang) * st.dist * 0.7 * ease, 0.05);
+      const sc = 0.6 + ease * 0.9;
+      st.m.scale.set(sc, sc, 1);
+      st.m.rotation.z = st.spin * p;
+      st.m.material.opacity = Math.sin(Math.min(1, p) * Math.PI) * 0.95;
+    }
+  }
+
+  const all = [room, search, found, watch, point, clap];
+  let foundAt = null, pendingStart = false, voiceOn = false, prevLocal = 0;
+
+  anchor.onTargetFound = () => { if (!claimLock('isin')) return; hint.style.display = 'none'; pendingStart = true; };
+  anchor.onTargetLost = () => {
+    releaseLock('isin');
+    hint.style.display = 'block';
+    foundAt = null; pendingStart = false; _smInit = false;
+    if (voiceOn) { dialogueIsin.stop(); voiceOn = false; }
+    for (const m of all) m.visible = false;
+    for (const st of stars) st.m.visible = false;
+    tableShadow.material.opacity = 0; isinShadow.material.opacity = 0;
+  };
+
+  return (t, dt) => {
+    if (pendingStart) {
+      foundAt = t; pendingStart = false; prevLocal = 0; _smInit = false;
+      dialogueIsin.start(); voiceOn = true;
+    }
+    if (foundAt === null) return;
+    smoothStage();
+
+    const local = (t - foundAt) % LOOP;
+    if (local < prevLocal && voiceOn) dialogueIsin.start(); // loop restarted
+    prevLocal = local;
+
+    const endFade = 1 - ramp(local, 29.3, 30.0);
+
+    const roomOp = ramp(local, 0, 0.4);
+    room.visible = roomOp > 0;
+    room.material.opacity = roomOp * endFade;
+
+    // Charlotte searching in the box (0-16s), a gentle concentrating rock
+    const searchOp = ramp(local, 0, 0.3) * (1 - ramp(local, 15.7, 16.3));
+    search.visible = searchOp > 0;
+    search.material.opacity = searchOp * endFade;
+    const rock = local < 16 ? Math.sin(local * 1.9) * 0.008 : 0;
+    search.position.set(-0.10, FEET + (CW2 / (1698 / 1253)) / 2 + Math.abs(rock) * 0.4, 0.02);
+    search.rotation.z = rock * 0.5;
+
+    // She found it! (16s on) — the yellow hat held high, happy little bounces
+    const foundOp = ramp(local, 15.7, 16.3);
+    found.visible = foundOp > 0;
+    found.material.opacity = foundOp * endFade;
+    const bounce = (local > 16.3 && local < 24) ? Math.abs(Math.sin((local - 16.3) * 5.2)) * 0.010 : 0;
+    found.position.set(-0.10, FEET + (CW2 / (1640 / 1260)) / 2 + bounce, 0.02);
+    tableShadow.material.opacity = Math.max(searchOp, foundOp) * endFade * 0.9;
+
+    // Madame Işın watches first (0-10.5s), letting Charlotte try alone
+    const watchOp = (ramp(local, 0.3, 0.8) * (1 - ramp(local, 10.2, 10.8))
+      + ramp(local, 15.7, 16.3) * (1 - ramp(local, 20.2, 20.8))) * endFade;
+    watch.visible = watchOp > 0;
+    watch.material.opacity = Math.min(1, watchOp);
+    watch.position.set(0.34, FEET + IH / 2, 0.03);
+
+    // One gentle instruction (10.5-16s): look carefully, the colors must match
+    const pointOp = ramp(local, 10.2, 10.8) * (1 - ramp(local, 15.7, 16.3));
+    point.visible = pointOp > 0;
+    point.material.opacity = pointOp * endFade;
+    point.position.set(0.34, FEET + IH / 2, 0.03);
+
+    // Bravo! (20.5s on) — she claps: you did it all by yourself
+    const clapOp = ramp(local, 20.2, 20.8);
+    clap.visible = clapOp > 0;
+    clap.material.opacity = clapOp * endFade;
+    const clapBob = local > 20.8 ? Math.abs(Math.sin(local * 6.0)) * 0.006 : 0;
+    clap.position.set(0.34, FEET + IH / 2 + clapBob, 0.03);
+    isinShadow.material.opacity = Math.max(watchOp, pointOp, clapOp) * endFade * 0.9;
+
+    // Stars for the match and for the bravo
+    if (local >= 16 && local < 18.6) starBurst(local, 16.0);
+    else if (local >= 20.5 && local < 23.1) starBurst(local, 20.5);
+    else for (const st of stars) st.m.visible = false;
+  };
+}
+
 async function startAR() {
   const mindarThree = new MindARThree({
     container: document.getElementById('ar-container'),
-    imageTargetSrc: './targets-letters-crop.mind?v=17',
+    imageTargetSrc: './targets-letters-crop.mind?v=18',
     uiLoading: 'no', uiScanning: 'no', uiError: 'no',
     maxTrack: 1,
   });
@@ -765,11 +950,13 @@ async function startAR() {
   dialogue.init();
   dialogueZelie.init();
   dialogueAbigail.init();
+  dialogueIsin.init();
 
   const updaters = [
     buildBrokenBookScene(mindarThree.addAnchor(0)),
     buildHelperScene(mindarThree.addAnchor(1)),
     buildRainScene(mindarThree.addAnchor(2)),
+    buildLotoScene(mindarThree.addAnchor(3)),
   ];
 
   await mindarThree.start();
