@@ -170,7 +170,7 @@ const dialogue = {
   el: null,
   init() {
     try {
-      this.el = new Audio('./dialogue-track.mp3');
+      this.el = new Audio('./dialogue-track.mp3?v=7');
       this.el.preload = 'auto';
       const p = this.el.play();
       if (p && p.then) p.then(() => { this.el.pause(); this.el.currentTime = 0; }).catch(() => {});
@@ -239,30 +239,30 @@ function buildBrokenBookScene(anchor) {
   }
 
   // The classroom as a soft stage in the middle of the card
-  const room = sprite('./classroom-soft.webp', 0.94, 1.16, 0.001);
+  const room = sprite('./classroom-soft.webp?v=7', 0.94, 1.16, 0.001);
   room.position.set(0, -0.02, 0.001);
 
   const CH = 0.50, CW = CH * (965 / 1371);
-  const charlotte = sprite('./sprite-charlotte-walk.webp', CW, CH, 0.02);
+  const charlotte = sprite('./sprite-charlotte-walk.webp?v=7', CW, CH, 0.02);
   const charShadow = makeShadow(0.26, 0.07);
   charShadow.position.set(-0.36, FEET + 0.010, 0.006);
   stage.add(charShadow);
 
   const SH = 0.60, SW1 = SH * (1108 / 1970), SWT = SH * (848 / 2009);
-  const steph = sprite('./steph-stand.png', SW1, SH, 0.02);
-  const stephTape = sprite('./steph-tape.png', SWT, SH, 0.02);
+  const steph = sprite('./steph-stand.png?v=7', SW1, SH, 0.02);
+  const stephTape = sprite('./steph-tape.png?v=7', SWT, SH, 0.02);
   const WW = SH * (828 / 1018), WWT = SH * (1200 / 1455);
-  const stephWalk = sprite('./steph-walk.png', WW, SH, 0.02);       // faces left
-  const stephWalkTape = sprite('./steph-walk-tape.png', WWT, SH, 0.02); // faces left, tape up
+  const stephWalk = sprite('./steph-walk.png?v=7', WW, SH, 0.02);       // faces left
+  const stephWalkTape = sprite('./steph-walk-tape.png?v=7', WWT, SH, 0.02); // faces left, tape up
   const stephShadow = makeShadow(0.32, 0.08);
   stephShadow.position.set(0.14, FEET + 0.010, 0.006);
   stage.add(stephShadow);
 
   const FW = 0.80, FH = FW * (872 / 1200);
-  const fix = sprite('./sprite-fix-together.webp', FW, FH, 0.02);
+  const fix = sprite('./sprite-fix-together.webp?v=7', FW, FH, 0.02);
   fix.position.set(0, FEET + FH / 2 + 0.01, 0.02);
   const RW = 0.80, RH = RW * (884 / 1200);
-  const reading = sprite('./sprite-reading.webp', RW, RH, 0.02);
+  const reading = sprite('./sprite-reading.webp?v=7', RW, RH, 0.02);
   reading.position.set(0, FEET + RH / 2 + 0.01, 0.02);
 
   const all = [room, charlotte, steph, stephTape, stephWalk, stephWalkTape, fix, reading];
@@ -308,13 +308,13 @@ function buildBrokenBookScene(anchor) {
     charShadow.material.opacity = charlotte.material.opacity * 0.9;
 
     // Stéphanie is in the class, welcoming (0.5s in)
-    const stOp = ramp(local, 0.5, 1.0) * (1 - ramp(local, 11.5, 11.65));
+    const stOp = (local >= 0.5 && local < 11.6) ? ramp(local, 0.5, 0.9) : 0;
     steph.visible = stOp > 0;
     steph.material.opacity = stOp * endFade;
     steph.position.set(0.14, FEET + SH / 2, 0.02);
 
     // Beat 3a (11.7-13.2s): she walks off to the right for the tape
-    const wkOp = ramp(local, 11.65, 11.8) * (1 - ramp(local, 13.05, 13.2));
+    const wkOp = (local >= 11.6 && local < 13.2) ? 1 : 0;
     const wkX = 0.14 + ramp(local, 11.7, 13.2) * 0.26;
     const wkBob = (local > 11.7 && local < 13.2) ? Math.abs(Math.sin(local * 8)) * 0.007 : 0;
     stephWalk.visible = wkOp > 0;
@@ -323,7 +323,7 @@ function buildBrokenBookScene(anchor) {
     stephWalk.position.set(wkX, FEET + SH / 2 + wkBob, 0.02);
 
     // Beat 3b (13.7-15.2s): she walks back from the right, tape held high
-    const wtOp = ramp(local, 13.65, 13.8) * (1 - ramp(local, 15.5, 15.65));
+    const wtOp = (local >= 13.7 && local < 15.6) ? 1 : 0;
     const wtX = 0.40 - ramp(local, 13.7, 15.2) * 0.26;
     const wtBob = (local > 13.7 && local < 15.2) ? Math.abs(Math.sin(local * 8)) * 0.007 : 0;
     stephWalkTape.visible = wtOp > 0;
@@ -331,7 +331,7 @@ function buildBrokenBookScene(anchor) {
     stephWalkTape.position.set(wtX, FEET + SH / 2 + wtBob, 0.02);
 
     // « Voilà le scotch ! » — she stops beside Charlotte, tape up
-    const tpOp = ramp(local, 15.6, 15.75) * (1 - ramp(local, 16.9, 17.05));
+    const tpOp = (local >= 15.6 && local < 17.0) ? 1 : 0;
     stephTape.visible = tpOp > 0;
     stephTape.material.opacity = tpOp * endFade;
     stephTape.position.set(0.14, FEET + SH / 2, 0.02);
@@ -356,7 +356,7 @@ function buildBrokenBookScene(anchor) {
 async function startAR() {
   const mindarThree = new MindARThree({
     container: document.getElementById('ar-container'),
-    imageTargetSrc: './targets-teachers.mind',
+    imageTargetSrc: './targets-teachers.mind?v=7',
     uiLoading: 'no', uiScanning: 'no', uiError: 'no',
     maxTrack: 1,
   });
