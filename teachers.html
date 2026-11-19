@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Charlotte's Thank-You — Watch the card come alive</title>
+<title>Charlotte's Thank-You — Watch the letter come alive</title>
 <style>
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #2e1a30; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   #ar-container { position: fixed; inset: 0; }
@@ -43,7 +43,7 @@
 
 <div class="panel" id="start-panel">
   <h1>A card from Charlotte ✨</h1>
-  <p>Point your phone camera at <b>your storybook card</b> and watch Charlotte's thank-you come alive.</p>
+  <p>Point your phone camera at <b>your parchment letter</b> and watch Charlotte's thank-you come alive.</p>
   <button id="start-btn">Start the magic</button>
   <p style="font-size:13px; opacity:.75; margin-top:18px;">Your camera is only used to see the card. Nothing is recorded or sent anywhere.</p>
 </div>
@@ -55,7 +55,7 @@
 </div>
 
 <div class="brand" id="brand">Charlotte's Thank-You</div>
-<div class="hint" id="hint">Point your camera at the card 📖</div>
+<div class="hint" id="hint">Point your camera at the letter 📜</div>
 
 <script type="module">
 import * as THREE from 'three';
@@ -233,7 +233,7 @@ function buildBrokenBookScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.position.y = -0.2357;
+  cardFrame.position.y = -0.2929;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -409,7 +409,7 @@ function buildHelperScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.position.y = -0.2357;
+  cardFrame.position.y = -0.2929;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -541,7 +541,7 @@ function buildHelperScene(anchor) {
 async function startAR() {
   const mindarThree = new MindARThree({
     container: document.getElementById('ar-container'),
-    imageTargetSrc: './targets-teachers-crop.mind?v=13',
+    imageTargetSrc: './targets-letters-crop.mind?v=14',
     uiLoading: 'no', uiScanning: 'no', uiError: 'no',
     maxTrack: 1,
   });
