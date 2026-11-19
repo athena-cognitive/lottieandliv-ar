@@ -187,8 +187,8 @@ function makeDialogue(src) {
     }
   };
 }
-const dialogue = makeDialogue('./dialogue-track.mp3?v=11');
-const dialogueZelie = makeDialogue('./dialogue-track-zelie.mp3?v=11');
+const dialogue = makeDialogue('./dialogue-track.mp3?v=12');
+const dialogueZelie = makeDialogue('./dialogue-track-zelie.mp3?v=12');
 
 // ---------- The Broken Book: Charlotte & Miss Stéphanie (target 0) ----------
 // A true story from the Sun Class: a library book was torn, Charlotte brought
@@ -251,32 +251,32 @@ function buildBrokenBookScene(anchor) {
   }
 
   // The classroom as a soft stage in the middle of the card
-  const room = sprite('./classroom-soft.webp?v=11', 0.94, 1.16, 0.001);
+  const room = sprite('./classroom-soft.webp?v=12', 0.94, 1.16, 0.001);
   room.renderOrder = 0;
   room.position.set(0, -0.02, 0.001);
 
   const CH = 0.50, CW = CH * (965 / 1371);
-  const charlotte = sprite('./sprite-charlotte-walk.webp?v=11', CW, CH, 0.032);
+  const charlotte = sprite('./sprite-charlotte-walk.webp?v=12', CW, CH, 0.032);
   charlotte.renderOrder = 3;
   const charShadow = makeShadow(0.26, 0.07);
   charShadow.position.set(-0.36, FEET + 0.010, 0.006);
   stage.add(charShadow);
 
   const SH = 0.60, SW1 = SH * (1108 / 1970), SWT = SH * (1000 / 1356);
-  const steph = sprite('./steph-stand.png?v=11', SW1, SH, 0.02);
-  const stephTape = sprite('./steph-tape.png?v=11', SWT, SH, 0.02);
+  const steph = sprite('./steph-stand.png?v=12', SW1, SH, 0.02);
+  const stephTape = sprite('./steph-tape.png?v=12', SWT, SH, 0.02);
   const WW = SH * (828 / 1018), WWT = SH * (1200 / 1455);
-  const stephWalk = sprite('./steph-walk.png?v=11', WW, SH, 0.02);       // faces left
-  const stephWalkTape = sprite('./steph-walk-tape.png?v=11', WWT, SH, 0.02); // faces left, tape up
+  const stephWalk = sprite('./steph-walk.png?v=12', WW, SH, 0.02);       // faces left
+  const stephWalkTape = sprite('./steph-walk-tape.png?v=12', WWT, SH, 0.02); // faces left, tape up
   const stephShadow = makeShadow(0.32, 0.08);
   stephShadow.position.set(0.14, FEET + 0.010, 0.006);
   stage.add(stephShadow);
 
   const FW = 0.80, FH = FW * (872 / 1200);
-  const fix = sprite('./sprite-fix-together.webp?v=11', FW, FH, 0.02);
+  const fix = sprite('./sprite-fix-together.webp?v=12', FW, FH, 0.02);
   fix.position.set(0, FEET + FH / 2 + 0.01, 0.02);
   const RW = 0.80, RH = RW * (884 / 1200);
-  const reading = sprite('./sprite-reading.webp?v=11', RW, RH, 0.02);
+  const reading = sprite('./sprite-reading.webp?v=12', RW, RH, 0.02);
   reading.position.set(0, FEET + RH / 2 + 0.01, 0.02);
 
   for (const m of [steph, stephTape, stephWalk, stephWalkTape, fix, reading]) m.renderOrder = 2;
@@ -418,12 +418,12 @@ function buildHelperScene(anchor) {
     return m;
   }
 
-  const room = sprite('./classroom-soft.webp?v=11', 0.94, 1.16, 0.001);
+  const room = sprite('./classroom-soft.webp?v=12', 0.94, 1.16, 0.001);
   room.position.set(0, -0.02, 0.001);
   room.renderOrder = 0;
 
   const TH = 0.50, TW = TH * (755 / 1369);
-  const tired = sprite('./sprite-charlotte-tired.webp?v=11', TW, TH, 0.032);
+  const tired = sprite('./sprite-charlotte-tired.webp?v=12', TW, TH, 0.032);
   tired.renderOrder = 3;
   const charShadow = makeShadow(0.24, 0.07);
   charShadow.position.set(-0.36, FEET + 0.010, 0.006);
@@ -431,7 +431,7 @@ function buildHelperScene(anchor) {
   stage.add(charShadow);
 
   const ZH = 0.60, ZW = ZH * (972 / 1940);
-  const zelie = sprite('./sprite-zelie-welcome.webp?v=11', ZW, ZH, 0.02);
+  const zelie = sprite('./sprite-zelie-welcome.webp?v=12', ZW, ZH, 0.02);
   zelie.renderOrder = 2;
   const zelShadow = makeShadow(0.30, 0.08);
   zelShadow.position.set(0.15, FEET + 0.010, 0.006);
@@ -439,10 +439,10 @@ function buildHelperScene(anchor) {
   stage.add(zelShadow);
 
   const WW2 = 0.72, WH2 = WW2 / (1029 / 1215);
-  const walk = sprite('./sprite-zelie-walk.webp?v=11', WW2, WH2, 0.02);
+  const walk = sprite('./sprite-zelie-walk.webp?v=12', WW2, WH2, 0.02);
   walk.renderOrder = 2;
   const TBW = 0.86, TBH = TBW / (1200 / 892);
-  const table = sprite('./sprite-zelie-table.webp?v=11', TBW, TBH, 0.02);
+  const table = sprite('./sprite-zelie-table.webp?v=12', TBW, TBH, 0.02);
   table.renderOrder = 2;
   table.position.set(0, FEET + TBH / 2 + 0.01, 0.02);
 
@@ -512,7 +512,7 @@ function buildHelperScene(anchor) {
 async function startAR() {
   const mindarThree = new MindARThree({
     container: document.getElementById('ar-container'),
-    imageTargetSrc: './targets-teachers-2.mind?v=11',
+    imageTargetSrc: './targets-teachers.mind?v=12',
     uiLoading: 'no', uiScanning: 'no', uiError: 'no',
     maxTrack: 1,
   });
@@ -522,11 +522,9 @@ async function startAR() {
   // music box is allowed to make sound later when the card is found.
   try { musicBox.init(new (window.AudioContext || window.webkitAudioContext)()); } catch (e) { /* no audio */ }
   dialogue.init();
-  dialogueZelie.init();
 
   const updaters = [
     buildBrokenBookScene(mindarThree.addAnchor(0)),
-    buildHelperScene(mindarThree.addAnchor(1)),
   ];
 
   await mindarThree.start();
