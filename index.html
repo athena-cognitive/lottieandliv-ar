@@ -967,6 +967,134 @@ function buildPhotoFrameScene(anchor) {
   };
 }
 
+// ---------- Scene 9: family Christmas dinner (targets 10 & 11, elegant green) ----------
+// Dad, mom, a girl and a boy have a beautiful dinner with a turkey while
+// Jingle Bells plays and the card's star shines with orbiting gold sparkles.
+// The dinner sprite is a grid sheet played ping-pong so the gentle motion
+// loops seamlessly; everything starts the instant the card is found.
+function buildDinnerScene(anchor) {
+  const COLS = 8, ROWS = 5, FRAMES = 40, FPS = 10;
+  const DIN_H = 0.40, BOTTOM_Y = -0.305, H = 2 / 3;
+  const starX = 0, starY = H / 2 - 0.07 * H;
+
+  const tex = new THREE.TextureLoader().load('./sprite-family-dinner.webp');
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.repeat.set(1 / COLS, 1 / ROWS);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+  const dinW = DIN_H * (604 / 336);
+  const dinner = new THREE.Mesh(new THREE.PlaneGeometry(dinW, DIN_H), mat);
+  dinner.position.set(0, BOTTOM_Y + DIN_H / 2, 0.02);
+  dinner.visible = false;
+  anchor.group.add(dinner);
+
+  // Warm candle glow behind the table
+  const glowCanvas = document.createElement('canvas');
+  glowCanvas.width = glowCanvas.height = 128;
+  const gctx = glowCanvas.getContext('2d');
+  const ggrad = gctx.createRadialGradient(64, 64, 4, 64, 64, 62);
+  ggrad.addColorStop(0, 'rgba(255,214,140,0.85)');
+  ggrad.addColorStop(0.5, 'rgba(255,190,110,0.28)');
+  ggrad.addColorStop(1, 'rgba(255,190,110,0)');
+  gctx.fillStyle = ggrad; gctx.fillRect(0, 0, 128, 128);
+  const candleGlow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.62, 0.34),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowCanvas), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.2 })
+  );
+  candleGlow.position.set(0, BOTTOM_Y + 0.13, 0.01);
+  anchor.group.add(candleGlow);
+
+  // The shining star: glow + orbiting gold sparkles (Flor loves these)
+  const starGlow = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.36, 0.36),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowCanvas), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })
+  );
+  starGlow.position.set(starX, starY, 0.004);
+  anchor.group.add(starGlow);
+
+  const N = 26;
+  const pos = new Float32Array(N * 3);
+  const meta = [];
+  for (let i = 0; i < N; i++) {
+    meta.push({ r: 0.05 + Math.random() * 0.12, a: Math.random() * Math.PI * 2, sp: 0.4 + Math.random() * 0.9 });
+    pos[i * 3 + 2] = 0.02;
+  }
+  const orbGeo = new THREE.BufferGeometry();
+  orbGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const orbMat = new THREE.PointsMaterial({
+    map: makeFlakeTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.9)'),
+    size: 0.02, transparent: true, depthWrite: false, color: 0xffd882, blending: THREE.AdditiveBlending
+  });
+  const orbit = new THREE.Points(orbGeo, orbMat);
+  anchor.group.add(orbit);
+
+  // Gentle gold dust falling over the whole card
+  const DUST = 36;
+  const dpos = new Float32Array(DUST * 3);
+  const dspeed = new Float32Array(DUST);
+  for (let i = 0; i < DUST; i++) {
+    dpos[i * 3] = (Math.random() - 0.5) * 1.0;
+    dpos[i * 3 + 1] = (Math.random() - 0.5) * H;
+    dpos[i * 3 + 2] = 0.01 + Math.random() * 0.04;
+    dspeed[i] = 0.012 + Math.random() * 0.025;
+  }
+  const dustGeo = new THREE.BufferGeometry();
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(dpos, 3));
+  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+    map: makeFlakeTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.9)'),
+    size: 0.011, transparent: true, depthWrite: false, opacity: 0.8, color: 0xffd882, blending: THREE.AdditiveBlending
+  }));
+  anchor.group.add(dust);
+
+  let foundAt = null, pendingStart = false, musicOn = false;
+  anchor.onTargetFound = () => { hint.style.display = 'none'; pendingStart = true; };
+  anchor.onTargetLost = () => {
+    hint.style.display = 'block';
+    foundAt = null;
+    dinner.visible = false;
+    if (musicOn) { musicBox.release(); musicOn = false; }
+  };
+
+  return (t, dt) => {
+    starGlow.material.opacity = 0.35 + 0.20 * Math.sin(t * 1.5);
+    const a = orbGeo.attributes.position.array;
+    for (let i = 0; i < N; i++) {
+      const m = meta[i], ang = m.a + t * m.sp;
+      a[i * 3] = starX + Math.cos(ang) * m.r;
+      a[i * 3 + 1] = starY + Math.sin(ang) * m.r * 0.8;
+    }
+    orbGeo.attributes.position.needsUpdate = true;
+    orbMat.opacity = 0.7 + 0.3 * Math.sin(t * 2.6);
+
+    const da = dustGeo.attributes.position.array;
+    for (let i = 0; i < DUST; i++) {
+      da[i * 3 + 1] -= dspeed[i] * dt;
+      da[i * 3] += Math.sin(t * 1.2 + i * 2.1) * 0.0009;
+      if (da[i * 3 + 1] < -H / 2) {
+        da[i * 3 + 1] = H / 2;
+        da[i * 3] = (Math.random() - 0.5) * 1.0;
+      }
+    }
+    dustGeo.attributes.position.needsUpdate = true;
+
+    if (pendingStart) { foundAt = t; pendingStart = false; }
+    if (foundAt === null) return;
+    const local = t - foundAt;
+    if (!musicOn) { musicBox.acquire('jingle'); musicOn = true; }
+
+    const fade = Math.min(1, local / 0.4);
+    dinner.visible = true;
+    mat.opacity = fade;
+    candleGlow.material.opacity = fade * (0.17 + 0.05 * Math.sin(t * 9.3) + 0.03 * Math.sin(t * 23.7));
+
+    const step = Math.floor(local * FPS);
+    const span = 2 * (FRAMES - 1);
+    const k = step % span;
+    const f = k < FRAMES ? k : span - k;
+    tex.offset.x = (f % COLS) / COLS;
+    tex.offset.y = (ROWS - 1 - Math.floor(f / COLS)) / ROWS;
+  };
+}
+
 // ---------- Sung song player (targets 12 & 13) ----------
 // The choir song is an original generated performance of the public-domain
 // carol "We Wish You a Merry Christmas" — one line each in Mandarin, French,
@@ -1287,7 +1415,7 @@ async function startAR() {
 
   // Targets (even = card with code, odd = clean version):
   // 0-1 reindeer, 2-3 fireplace, 4-5 penguins, 6-7 forest fox,
-  // 8-9 winter village, 10-11 elegant green, 12-13 elegant red (kids' choir), 14-15 photo frame
+  // 8-9 winter village, 10-11 elegant green (family dinner), 12-13 elegant red (kids' choir), 14-15 photo frame
   const updaters = [
     buildReindeerScene(mindarThree.addAnchor(0)),
     buildReindeerScene(mindarThree.addAnchor(1)),
@@ -1299,8 +1427,8 @@ async function startAR() {
     buildFoxDanceScene(mindarThree.addAnchor(7)),
     buildVillageFamilyScene(mindarThree.addAnchor(8)),
     buildVillageFamilyScene(mindarThree.addAnchor(9)),
-    buildElegantScene(mindarThree.addAnchor(10), 0xffd882),
-    buildElegantScene(mindarThree.addAnchor(11), 0xffd882),
+    buildDinnerScene(mindarThree.addAnchor(10)),
+    buildDinnerScene(mindarThree.addAnchor(11)),
     buildChoirScene(mindarThree.addAnchor(12)),
     buildChoirScene(mindarThree.addAnchor(13)),
     buildPhotoFrameScene(mindarThree.addAnchor(14)),
