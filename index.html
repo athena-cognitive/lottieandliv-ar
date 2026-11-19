@@ -179,7 +179,140 @@ function buildReindeerScene(anchor) {
   };
 }
 
-// ---------- Scene 2: Santa walks in to the fireplace (targets 2 & 3) ----------
+// ---------- Scene 2 (redesigned Nov 18): the fireplace STORY (targets 2 & 3) ----------
+// Flor's story in three beats: (1) Papa Noel squeezes out of the fireplace,
+// (2) he kneels by the tree and leaves the gifts, then vanishes in sparkles,
+// (3) "next day" — morning light, and the family runs in to open the
+// presents. The sung English "We Wish You a Merry Christmas" (songPlayerEn)
+// plays throughout. Everything starts the instant the card is found.
+function buildFireplaceStoryScene(anchor) {
+  const H = 2 / 3, LOOP = 18;
+
+  function gridSprite(url, cols, rows, w, cellAspect) {
+    const tex = new THREE.TextureLoader().load(url);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.repeat.set(1 / cols, 1 / rows);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, w * cellAspect), mat);
+    mesh.visible = false;
+    anchor.group.add(mesh);
+    return { tex, mat, mesh, cols, rows,
+      setFrame(f) {
+        this.tex.offset.x = (f % this.cols) / this.cols;
+        this.tex.offset.y = (this.rows - 1 - Math.floor(f / this.cols)) / this.rows;
+      } };
+  }
+
+  // Beat 1: Santa emerges from the fireplace (37 frames, cell 711x400)
+  const emerge = gridSprite('./sprite-santa-emerge.webp', 8, 5, 0.46, 400 / 711);
+  emerge.mesh.position.set(-0.29, -0.22 + (0.46 * (400 / 711)) / 2, 0.02);
+  // Beat 2: Santa leaves the gifts by the tree (66 frames, cell 609x336)
+  const gifts = gridSprite('./sprite-santa-gifts.webp', 10, 7, 0.52, 336 / 609);
+  gifts.mesh.position.set(0.16, -0.29 + (0.52 * (336 / 609)) / 2, 0.021);
+  // Beat 3: the family opens the presents (73 frames, cell 609x336), same spot
+  const family = gridSprite('./sprite-family-presents.webp', 10, 8, 0.52, 336 / 609);
+  family.mesh.position.set(0.16, -0.29 + (0.52 * (336 / 609)) / 2, 0.022);
+
+  const glowTex = makeFlakeTexture('rgba(255,214,140,1)', 'rgba(255,170,80,.9)');
+
+  // Morning glow: a warm wash over the whole card for "next day"
+  const morning = new THREE.Mesh(new THREE.PlaneGeometry(1.0, H),
+    new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  morning.position.set(0, 0, 0.008);
+  anchor.group.add(morning);
+
+  // Gold sparkles around the mantel and stockings, twinkling throughout
+  const SP = 26;
+  const spPos = new Float32Array(SP * 3);
+  for (let i = 0; i < SP; i++) {
+    spPos[i * 3] = -0.49 + Math.random() * 0.47;
+    spPos[i * 3 + 1] = 0.03 + Math.random() * 0.17;
+    spPos[i * 3 + 2] = 0.015;
+  }
+  const spGeo = new THREE.BufferGeometry();
+  spGeo.setAttribute('position', new THREE.BufferAttribute(spPos, 3));
+  const sparkles = new THREE.Points(spGeo, new THREE.PointsMaterial({
+    map: glowTex, color: 0xffd882, size: 0.02, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.8
+  }));
+  anchor.group.add(sparkles);
+
+  // Sparkle burst: at the fireplace when Santa pops out, and where he
+  // vanishes by the tree (the cloud is repositioned per phase)
+  const BP = 40;
+  const bpPos = new Float32Array(BP * 3);
+  for (let i = 0; i < BP; i++) {
+    const a = Math.random() * Math.PI * 2, r = Math.random() * 0.16;
+    bpPos[i * 3] = Math.cos(a) * r;
+    bpPos[i * 3 + 1] = Math.sin(a) * r * 0.8;
+    bpPos[i * 3 + 2] = 0.03;
+  }
+  const bpGeo = new THREE.BufferGeometry();
+  bpGeo.setAttribute('position', new THREE.BufferAttribute(bpPos, 3));
+  const burst = new THREE.Points(bpGeo, new THREE.PointsMaterial({
+    map: glowTex, color: 0xffe9a8, size: 0.024, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0
+  }));
+  anchor.group.add(burst);
+
+  let foundAt = null, pendingStart = false, songOn = false;
+  anchor.onTargetFound = () => { hint.style.display = 'none'; pendingStart = true; };
+  anchor.onTargetLost = () => {
+    hint.style.display = 'block';
+    foundAt = null;
+    emerge.mesh.visible = gifts.mesh.visible = family.mesh.visible = false;
+    burst.material.opacity = 0;
+    morning.material.opacity = 0;
+    if (songOn) { songPlayerEn.release(); songOn = false; }
+  };
+
+  return (t, dt) => {
+    sparkles.material.opacity = 0.55 + 0.3 * Math.sin(t * 2.4);
+    if (pendingStart) { foundAt = t; pendingStart = false; }
+    if (foundAt === null) return;
+    const local = (t - foundAt) % LOOP;
+    if (!songOn) { songPlayerEn.acquire(); songOn = true; }
+
+    let eOp = 0, gOp = 0, fOp = 0, burstOp = 0;
+    if (local < 3.7) {
+      eOp = Math.min(1, local / 0.3);
+      emerge.setFrame(Math.min(36, Math.floor(local * 10)));
+      burst.position.set(-0.29, -0.02, 0);
+      burstOp = Math.max(0, 0.9 - local * 1.1);
+    } else if (local < 4.3) {
+      const q = (local - 3.7) / 0.6;
+      eOp = 1 - q; gOp = q;
+      emerge.setFrame(36);
+      gifts.setFrame(0);
+    } else if (local < 10.3) {
+      gOp = 1;
+      gifts.setFrame(Math.min(65, Math.floor((local - 4.3) * 11)));
+    } else if (local < 11.1) {
+      gOp = 1 - (local - 10.3) / 0.8;
+      gifts.setFrame(65);
+      burst.position.set(0.16, -0.12, 0);
+      burstOp = Math.sin((local - 10.3) / 0.8 * Math.PI) * 0.95;
+    } else if (local < 17.7) {
+      fOp = Math.min(1, (local - 11.1) / 0.4);
+      family.setFrame(Math.min(72, Math.floor((local - 11.1) * 11)));
+    } else {
+      fOp = 1 - (local - 17.7) / 0.3;
+      family.setFrame(72);
+    }
+    morning.material.opacity =
+      local < 10.3 ? 0 :
+      local < 12.0 ? 0.30 * (local - 10.3) / 1.7 :
+      local < 16.5 ? 0.30 :
+      Math.max(0, 0.30 * (1 - (local - 16.5) / 1.5));
+    burst.material.opacity = burstOp;
+    emerge.mat.opacity = eOp;
+    gifts.mat.opacity = gOp;
+    family.mat.opacity = fOp;
+    emerge.mesh.visible = eOp > 0.01;
+    gifts.mesh.visible = gOp > 0.01;
+    family.mesh.visible = fOp > 0.01;
+  };
+}
+
+// ---------- Scene 2 (original): Santa walks in to the fireplace (targets 2 & 3) ----------
 function buildSantaScene(anchor) {
   const FRAMES = 12;
   const LOOP = 10, WALK_END = 4.2, STAY_END = 7.2, FADE_END = 8.2;
@@ -1649,8 +1782,8 @@ async function startAR() {
   const updaters = [
     buildReindeerScene(mindarThree.addAnchor(0)),
     buildReindeerScene(mindarThree.addAnchor(1)),
-    buildSantaScene(mindarThree.addAnchor(2)),
-    buildSantaScene(mindarThree.addAnchor(3)),
+    buildFireplaceStoryScene(mindarThree.addAnchor(2)),
+    buildFireplaceStoryScene(mindarThree.addAnchor(3)),
     buildPenguinSkateScene(mindarThree.addAnchor(4)),
     buildPenguinSkateScene(mindarThree.addAnchor(5)),
     buildFoxDanceScene(mindarThree.addAnchor(6)),
