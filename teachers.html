@@ -170,7 +170,7 @@ const dialogue = {
   el: null,
   init() {
     try {
-      this.el = new Audio('./dialogue-track.mp3?v=8');
+      this.el = new Audio('./dialogue-track.mp3?v=9');
       this.el.preload = 'auto';
       const p = this.el.play();
       if (p && p.then) p.then(() => { this.el.pause(); this.el.currentTime = 0; }).catch(() => {});
@@ -215,11 +215,19 @@ function buildBrokenBookScene(anchor) {
   function smoothStage() {
     _rawM.copy(anchor.group.matrix);
     _rawM.decompose(_rawP, _rawQ, _rawS);
-    if (!_smInit || _smP.distanceTo(_rawP) > 0.35) {
+    // Distances are judged in card-width units: the raw pose carries the
+    // target's pixel scale, so divide it out first. (V9 bug fix: the snap
+    // threshold used to be in raw units, so it fired every frame and the
+    // smoothing never actually engaged.)
+    const dPos = _smP.distanceTo(_rawP) / Math.max(1e-6, _rawS.x);
+    const dAng = _smInit ? _smQ.angleTo(_rawQ) : 0;
+    if (!_smInit || dPos > 0.35) {
       _smP.copy(_rawP); _smQ.copy(_rawQ); _smInit = true;
+    } else if (dPos < 0.0015 && dAng < 0.002) {
+      // micro-jitter only: hold perfectly still
     } else {
-      _smP.lerp(_rawP, 0.40);
-      _smQ.slerp(_rawQ, 0.40);
+      _smP.lerp(_rawP, 0.15);
+      _smQ.slerp(_rawQ, 0.15);
     }
     _smM.compose(_smP, _smQ, _rawS);
     _invM.copy(_rawM).invert();
@@ -239,32 +247,32 @@ function buildBrokenBookScene(anchor) {
   }
 
   // The classroom as a soft stage in the middle of the card
-  const room = sprite('./classroom-soft.webp?v=8', 0.94, 1.16, 0.001);
+  const room = sprite('./classroom-soft.webp?v=9', 0.94, 1.16, 0.001);
   room.renderOrder = 0;
   room.position.set(0, -0.02, 0.001);
 
   const CH = 0.50, CW = CH * (965 / 1371);
-  const charlotte = sprite('./sprite-charlotte-walk.webp?v=8', CW, CH, 0.032);
+  const charlotte = sprite('./sprite-charlotte-walk.webp?v=9', CW, CH, 0.032);
   charlotte.renderOrder = 3;
   const charShadow = makeShadow(0.26, 0.07);
   charShadow.position.set(-0.36, FEET + 0.010, 0.006);
   stage.add(charShadow);
 
   const SH = 0.60, SW1 = SH * (1108 / 1970), SWT = SH * (848 / 2009);
-  const steph = sprite('./steph-stand.png?v=8', SW1, SH, 0.02);
-  const stephTape = sprite('./steph-tape.png?v=8', SWT, SH, 0.02);
+  const steph = sprite('./steph-stand.png?v=9', SW1, SH, 0.02);
+  const stephTape = sprite('./steph-tape.png?v=9', SWT, SH, 0.02);
   const WW = SH * (828 / 1018), WWT = SH * (1200 / 1455);
-  const stephWalk = sprite('./steph-walk.png?v=8', WW, SH, 0.02);       // faces left
-  const stephWalkTape = sprite('./steph-walk-tape.png?v=8', WWT, SH, 0.02); // faces left, tape up
+  const stephWalk = sprite('./steph-walk.png?v=9', WW, SH, 0.02);       // faces left
+  const stephWalkTape = sprite('./steph-walk-tape.png?v=9', WWT, SH, 0.02); // faces left, tape up
   const stephShadow = makeShadow(0.32, 0.08);
   stephShadow.position.set(0.14, FEET + 0.010, 0.006);
   stage.add(stephShadow);
 
   const FW = 0.80, FH = FW * (872 / 1200);
-  const fix = sprite('./sprite-fix-together.webp?v=8', FW, FH, 0.02);
+  const fix = sprite('./sprite-fix-together.webp?v=9', FW, FH, 0.02);
   fix.position.set(0, FEET + FH / 2 + 0.01, 0.02);
   const RW = 0.80, RH = RW * (884 / 1200);
-  const reading = sprite('./sprite-reading.webp?v=8', RW, RH, 0.02);
+  const reading = sprite('./sprite-reading.webp?v=9', RW, RH, 0.02);
   reading.position.set(0, FEET + RH / 2 + 0.01, 0.02);
 
   for (const m of [steph, stephTape, stephWalk, stephWalkTape, fix, reading]) m.renderOrder = 2;
@@ -360,7 +368,7 @@ function buildBrokenBookScene(anchor) {
 async function startAR() {
   const mindarThree = new MindARThree({
     container: document.getElementById('ar-container'),
-    imageTargetSrc: './targets-teachers.mind?v=8',
+    imageTargetSrc: './targets-teachers.mind?v=9',
     uiLoading: 'no', uiScanning: 'no', uiError: 'no',
     maxTrack: 1,
   });
