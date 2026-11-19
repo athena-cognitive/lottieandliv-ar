@@ -1130,7 +1130,9 @@ const songPlayerEn = makeSongPlayer('./song-english.mp3');
 
 function buildPhotoStoryScene(anchor) {
   const H = 1.5, LOOP = 15;
-  const RX0 = -0.35, RX1 = 0.19, RY0 = -0.16, RY1 = 0.47;
+  // Frame opening measured from the card art itself (gold border lines):
+  // center x +0.006, width 0.568, height 0.667.
+  const RX0 = -0.278, RX1 = 0.290, RY0 = -0.226, RY1 = 0.441;
   const CX = (RX0 + RX1) / 2;
 
   function gridSprite(url, cols, rows, w) {
@@ -1267,7 +1269,7 @@ function buildPhotoStoryScene(anchor) {
     if (local < 5) {
       aOp = Math.min(1, local / 0.4);
       stairs.setFrame(Math.min(49, Math.floor(local * 10)));
-      stairs.mesh.position.y = 0.20 - 0.08 * (local / 5);
+      stairs.mesh.position.y = 0.17 - 0.08 * (local / 5);
     } else if (local < 5.6) {
       const q = (local - 5) / 0.6;
       aOp = 1 - q; bOp = q;
@@ -1282,11 +1284,11 @@ function buildPhotoStoryScene(anchor) {
       const q = (local - 13.5) / 0.7;
       bOp = 1 - q; aOp = q;
       stairs.setFrame(0);
-      stairs.mesh.position.y = 0.20;
+      stairs.mesh.position.y = 0.17;
     } else {
       aOp = 1;
       stairs.setFrame(Math.floor((local - 14.2) * 10));
-      stairs.mesh.position.y = 0.20 - 0.08 * ((local - 14.2) / 5);
+      stairs.mesh.position.y = 0.17 - 0.08 * ((local - 14.2) / 5);
     }
     stairs.mat.opacity = aOp;
     tree.mat.opacity = bOp;
