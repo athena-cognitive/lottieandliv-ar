@@ -967,6 +967,118 @@ function buildPhotoFrameScene(anchor) {
   };
 }
 
+// ---------- Sung song player (targets 12 & 13) ----------
+// The choir song is an original generated performance of the public-domain
+// carol "We Wish You a Merry Christmas" — one line each in Mandarin, French,
+// Spanish and English. No commercial recording is used.
+const songPlayer = {
+  el: null, holders: 0,
+  init() {
+    if (this.el) return;
+    try {
+      this.el = new Audio('./song-4lang.mp3');
+      this.el.loop = true;
+      this.el.preload = 'auto';
+      // Unlock audio inside the Start-button tap so it may play later,
+      // when the red card is found.
+      const p = this.el.play();
+      if (p) p.then(() => { this.el.pause(); this.el.currentTime = 0; }).catch(() => {});
+    } catch (e) { /* no audio */ }
+  },
+  acquire() {
+    this.holders++;
+    if (this.el && this.holders === 1) {
+      try { this.el.currentTime = 0; const p = this.el.play(); if (p) p.catch(() => {}); } catch (e) {}
+    }
+  },
+  release() {
+    this.holders = Math.max(0, this.holders - 1);
+    if (this.el && this.holders === 0) { try { this.el.pause(); } catch (e) {} }
+  }
+};
+
+// ---------- Scene 8: four kids hold hands and sing (targets 12 & 13, elegant red) ----------
+// A girl from China, a boy from France, a girl from Latin America and a boy
+// from the U.S. sing together from the instant the card is found, while it
+// snows. The sprite is a 7x4 grid sheet of the same four kids throughout.
+function buildChoirScene(anchor) {
+  const COLS = 7, ROWS = 4, FRAMES = 28, FPS = 10;
+  const KIDS_H = 0.34, FEET_Y = -0.285, H = 2 / 3;
+
+  const tex = new THREE.TextureLoader().load('./sprite-kids-choir.webp');
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.repeat.set(1 / COLS, 1 / ROWS);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+  const kidsW = KIDS_H * (613 / 336);
+  const kids = new THREE.Mesh(new THREE.PlaneGeometry(kidsW, KIDS_H), mat);
+  kids.position.set(0, FEET_Y + KIDS_H / 2, 0.02);
+  kids.visible = false;
+  anchor.group.add(kids);
+
+  const shadow = makeShadow(kidsW * 0.92, 0.055);
+  shadow.position.set(0, FEET_Y + 0.008, 0.006);
+  shadow.visible = false;
+  anchor.group.add(shadow);
+
+  const SNOW = 110;
+  const pos = new Float32Array(SNOW * 3);
+  const speed = new Float32Array(SNOW);
+  for (let i = 0; i < SNOW; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 1.0;
+    pos[i * 3 + 1] = (Math.random() - 0.5) * H;
+    pos[i * 3 + 2] = 0.01 + Math.random() * 0.05;
+    speed[i] = 0.03 + Math.random() * 0.06;
+  }
+  const snowGeo = new THREE.BufferGeometry();
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+    map: makeFlakeTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.85)'),
+    size: 0.016, transparent: true, depthWrite: false, opacity: 0.35
+  }));
+  anchor.group.add(snow);
+
+  let foundAt = null, pendingStart = false, songOn = false;
+  anchor.onTargetFound = () => { hint.style.display = 'none'; pendingStart = true; };
+  anchor.onTargetLost = () => {
+    hint.style.display = 'block';
+    foundAt = null;
+    kids.visible = false;
+    shadow.visible = false;
+    if (songOn) { songPlayer.release(); songOn = false; }
+  };
+
+  return (t, dt) => {
+    const arr = snowGeo.attributes.position.array;
+    for (let i = 0; i < SNOW; i++) {
+      arr[i * 3 + 1] -= speed[i] * dt;
+      arr[i * 3] += Math.sin(t * 1.5 + i) * 0.0006;
+      if (arr[i * 3 + 1] < -H / 2) {
+        arr[i * 3 + 1] = H / 2;
+        arr[i * 3] = (Math.random() - 0.5) * 1.0;
+      }
+    }
+    snowGeo.attributes.position.needsUpdate = true;
+
+    if (pendingStart) { foundAt = t; pendingStart = false; }
+    if (foundAt === null) return;
+    const local = t - foundAt;
+    if (!songOn) { songPlayer.acquire(); songOn = true; }
+    snow.material.opacity = 0.35 + 0.6 * Math.min(1, local / 1.5);
+
+    const f = Math.floor(local * FPS) % FRAMES;
+    tex.offset.x = (f % COLS) / COLS;
+    tex.offset.y = (ROWS - 1 - Math.floor(f / COLS)) / ROWS;
+
+    const fade = Math.min(1, local / 0.4);
+    kids.visible = true;
+    shadow.visible = true;
+    mat.opacity = fade;
+    shadow.material.opacity = fade * 0.85;
+    kids.position.y = FEET_Y + KIDS_H / 2 + Math.abs(Math.sin(local * Math.PI / 0.92)) * 0.005;
+    kids.rotation.z = Math.sin(local * Math.PI * 2 / 2.8) * 0.008;
+  };
+}
+
 // ---------- Music box: public-domain carols, played by the page itself ----------
 // No audio file and no recording: each melody is synthesized note by note with WebAudio,
 // so there is no recording copyright. Jingle Bells: James Lord Pierpont, 1857, public domain.
@@ -1171,10 +1283,11 @@ async function startAR() {
   // Create the audio context now, inside the Start-button tap, so the
   // music box is allowed to make sound later when a card is found.
   try { musicBox.init(new (window.AudioContext || window.webkitAudioContext)()); } catch (e) { /* no audio */ }
+  songPlayer.init();
 
   // Targets (even = card with code, odd = clean version):
   // 0-1 reindeer, 2-3 fireplace, 4-5 penguins, 6-7 forest fox,
-  // 8-9 winter village, 10-11 elegant green, 12-13 elegant red, 14-15 photo frame
+  // 8-9 winter village, 10-11 elegant green, 12-13 elegant red (kids' choir), 14-15 photo frame
   const updaters = [
     buildReindeerScene(mindarThree.addAnchor(0)),
     buildReindeerScene(mindarThree.addAnchor(1)),
@@ -1188,8 +1301,8 @@ async function startAR() {
     buildVillageFamilyScene(mindarThree.addAnchor(9)),
     buildElegantScene(mindarThree.addAnchor(10), 0xffd882),
     buildElegantScene(mindarThree.addAnchor(11), 0xffd882),
-    buildElegantScene(mindarThree.addAnchor(12), 0xffb080),
-    buildElegantScene(mindarThree.addAnchor(13), 0xffb080),
+    buildChoirScene(mindarThree.addAnchor(12)),
+    buildChoirScene(mindarThree.addAnchor(13)),
     buildPhotoFrameScene(mindarThree.addAnchor(14)),
     buildPhotoFrameScene(mindarThree.addAnchor(15)),
   ];
