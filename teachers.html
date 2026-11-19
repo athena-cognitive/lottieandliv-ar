@@ -189,6 +189,7 @@ function makeDialogue(src) {
 }
 const dialogue = makeDialogue('./dialogue-track.mp3?v=13');
 const dialogueZelie = makeDialogue('./dialogue-track-zelie.mp3?v=13');
+const dialogueAbigail = makeDialogue('./dialogue-track-abigail.mp3?v=15');
 
 
 // ---------- One card at a time ----------
@@ -538,10 +539,221 @@ function buildHelperScene(anchor) {
   };
 }
 
+
+// ---------- Miss Abigail After the Rain: Charlotte & Madame Abigail (target 2) ----------
+// A true story: on a rainy day Charlotte played outside in her raincoat and
+// boots and got completely soaked. Miss Abigail was worried; the moment she
+// could, she brought Charlotte in, wrapped her in a towel, poured the rain
+// out of her boots, and made sure she was dry and warm. Bilingual: Charlotte
+// speaks English, Miss Abigail speaks French. The rain starts the instant
+// the letter is found.
+function buildRainScene(anchor) {
+  const LOOP = 32, FEET = -0.40;
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+  const ramp = (t, a, b) => clamp01((t - a) / (b - a));
+
+  const stage = new THREE.Group();
+  stage.matrixAutoUpdate = false;
+  const cardFrame = new THREE.Group();
+  cardFrame.position.y = -0.2929;
+  anchor.group.add(cardFrame);
+  cardFrame.add(stage);
+  const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
+  const _rawP = new THREE.Vector3(), _rawQ = new THREE.Quaternion(), _rawS = new THREE.Vector3();
+  const _smP = new THREE.Vector3(), _smQ = new THREE.Quaternion();
+  let _smInit = false;
+  function smoothStage() {
+    _rawM.copy(anchor.group.matrix);
+    _rawM.decompose(_rawP, _rawQ, _rawS);
+    const dPos = _smP.distanceTo(_rawP) / Math.max(1e-6, _rawS.x);
+    const dAng = _smInit ? _smQ.angleTo(_rawQ) : 0;
+    if (!_smInit || dPos > 0.35) {
+      _smP.copy(_rawP); _smQ.copy(_rawQ); _smInit = true;
+    } else if (dPos < 0.0015 && dAng < 0.002) {
+      // micro-jitter only: hold perfectly still
+    } else {
+      _smP.lerp(_rawP, 0.15);
+      _smQ.slerp(_rawQ, 0.15);
+    }
+    _smM.compose(_smP, _smQ, _rawS);
+    _invM.copy(_rawM).invert();
+    stage.matrix.multiplyMatrices(_invM, _smM);
+    stage.matrixWorldNeedsUpdate = true;
+  }
+
+  function sprite(url, w, h, z) {
+    const tex = new THREE.TextureLoader().load(url);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, opacity: 0, depthWrite: false });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    m.position.z = z;
+    m.visible = false;
+    stage.add(m);
+    return m;
+  }
+
+  // Backdrops: the rainy schoolyard outside, the cozy classroom inside
+  const yard = sprite('./backdrop-rainyard.webp?v=15', 1.02, 0.68, 0.001);
+  yard.position.set(0, 0.05, 0.001);
+  yard.renderOrder = 0;
+  const room = sprite('./classroom-soft.webp?v=13', 0.94, 1.16, 0.0015);
+  room.position.set(0, -0.02, 0.0015);
+  room.renderOrder = 0;
+
+  // Rain: thin streaks that fall and recycle while they are outside
+  const rainGroup = new THREE.Group();
+  const rainMat = new THREE.MeshBasicMaterial({ color: 0xdfeaf2, transparent: true, opacity: 0, depthWrite: false });
+  const drops = [];
+  for (let i = 0; i < 42; i++) {
+    const dm = new THREE.Mesh(new THREE.PlaneGeometry(0.0016, 0.045 + Math.random() * 0.03), rainMat);
+    dm.position.set(-0.5 + Math.random(), -0.45 + Math.random() * 1.1, 0.05 + Math.random() * 0.02);
+    dm.rotation.z = 0.18;
+    rainGroup.add(dm);
+    drops.push({ m: dm, s: 0.55 + Math.random() * 0.5 });
+  }
+  rainGroup.visible = false;
+  stage.add(rainGroup);
+
+  // Puddle ripple rings under Charlotte while she splashes
+  const ripple = new THREE.Mesh(
+    new THREE.RingGeometry(0.05, 0.056, 40),
+    new THREE.MeshBasicMaterial({ color: 0xcfe4f2, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false })
+  );
+  ripple.position.set(-0.14, FEET + 0.012, 0.008);
+  ripple.renderOrder = 1;
+  stage.add(ripple);
+
+  const CH = 0.50;
+  const play = sprite('./sprite-charlotte-rainplay.webp?v=15', CH * (1168 / 1980), CH, 0.032);
+  play.renderOrder = 3;
+  const soaked = sprite('./sprite-charlotte-soaked.webp?v=15', CH * (999 / 2066), CH, 0.032);
+  soaked.renderOrder = 3;
+  const charShadow = makeShadow(0.24, 0.07);
+  charShadow.position.set(-0.14, FEET + 0.010, 0.006);
+  charShadow.renderOrder = 1;
+  stage.add(charShadow);
+
+  const AH = 0.60;
+  const door = sprite('./sprite-abigail-door.webp?v=15', AH * (525 / 1505), AH, 0.02);
+  door.renderOrder = 2;
+  const abiShadow = makeShadow(0.26, 0.075);
+  abiShadow.position.set(0.26, FEET + 0.010, 0.006);
+  abiShadow.renderOrder = 1;
+  stage.add(abiShadow);
+
+  const TW2 = 0.80, TH2 = TW2 / (1607 / 1243);
+  const towel = sprite('./sprite-abigail-towel.webp?v=15', TW2, TH2, 0.02);
+  towel.renderOrder = 2;
+  towel.position.set(0, FEET + TH2 / 2 + 0.01, 0.02);
+  const BW = 0.82, BH = BW / (1689 / 1265);
+  const boot = sprite('./sprite-abigail-boot.webp?v=15', BW, BH, 0.02);
+  boot.renderOrder = 2;
+  boot.position.set(0, FEET + BH / 2 + 0.01, 0.02);
+  const HW = 0.72, HH = HW / (1351 / 1267);
+  const hug = sprite('./sprite-abigail-hug.webp?v=15', HW, HH, 0.02);
+  hug.renderOrder = 2;
+  hug.position.set(0, FEET + HH / 2 + 0.01, 0.02);
+
+  const all = [yard, room, play, soaked, door, towel, boot, hug];
+  let foundAt = null, pendingStart = false, voiceOn = false, prevLocal = 0;
+
+  anchor.onTargetFound = () => { if (!claimLock('abigail')) return; hint.style.display = 'none'; pendingStart = true; };
+  anchor.onTargetLost = () => {
+    releaseLock('abigail');
+    hint.style.display = 'block';
+    foundAt = null; pendingStart = false; _smInit = false;
+    if (voiceOn) { dialogueAbigail.stop(); voiceOn = false; }
+    for (const m of all) m.visible = false;
+    rainGroup.visible = false;
+    ripple.material.opacity = 0;
+    charShadow.material.opacity = 0; abiShadow.material.opacity = 0;
+  };
+
+  return (t, dt) => {
+    if (pendingStart) {
+      foundAt = t; pendingStart = false; prevLocal = 0; _smInit = false;
+      dialogueAbigail.start(); voiceOn = true;
+    }
+    if (foundAt === null) return;
+    smoothStage();
+
+    const local = (t - foundAt) % LOOP;
+    if (local < prevLocal && voiceOn) dialogueAbigail.start(); // loop restarted
+    prevLocal = local;
+
+    const endFade = 1 - ramp(local, 31.3, 32.0);
+
+    // Outside (0-11s): the rainy yard melts in, from the first instant
+    const yardOp = ramp(local, 0, 0.4) * (1 - ramp(local, 10.6, 11.4));
+    yard.visible = yardOp > 0;
+    yard.material.opacity = yardOp * endFade;
+    // Inside (11s on): the cozy classroom
+    const roomOp = ramp(local, 10.6, 11.4);
+    room.visible = roomOp > 0;
+    room.material.opacity = roomOp * endFade;
+
+    // Rain falls while they are outside
+    const rainOp = (1 - ramp(local, 10.4, 11.2)) * endFade;
+    rainGroup.visible = rainOp > 0.01;
+    rainMat.opacity = 0.4 * rainOp;
+    if (rainGroup.visible) {
+      for (const d of drops) {
+        d.m.position.y -= d.s * dt;
+        d.m.position.x += d.s * dt * 0.18;
+        if (d.m.position.y < -0.48) { d.m.position.y = 0.62; d.m.position.x = -0.5 + Math.random(); }
+      }
+    }
+
+    // Beat 1 (0-5.5s): Charlotte splashing in the puddle, laughing
+    const playOp = ramp(local, 0, 0.3) * (1 - ramp(local, 5.3, 5.9));
+    const splashBob = local < 5.9 ? Math.abs(Math.sin(local * 6.5)) * 0.014 : 0;
+    play.visible = playOp > 0;
+    play.material.opacity = playOp * endFade;
+    play.position.set(-0.14, FEET + CH / 2 + splashBob, 0.032);
+    const rip = (local % 0.9) / 0.9;
+    ripple.material.opacity = local < 5.9 ? (1 - rip) * 0.55 * playOp * endFade : 0;
+    const rs = 0.7 + rip * 1.5;
+    ripple.scale.set(rs, rs * 0.32, 1);
+
+    // Beat 2 (5.5-11s): soaked Charlotte, dripping, telling her it's okay
+    const soakOp = ramp(local, 5.3, 5.9) * (1 - ramp(local, 10.6, 11.2));
+    soaked.visible = soakOp > 0;
+    soaked.material.opacity = soakOp * endFade;
+    soaked.position.set(-0.10, FEET + CH / 2, 0.032);
+    const charOp = Math.max(playOp, soakOp);
+    charShadow.material.opacity = charOp * endFade * 0.9;
+    charShadow.position.x = playOp >= soakOp ? -0.14 : -0.10;
+
+    // Miss Abigail at the door with the towel, worried (1.2s, until they go in)
+    const doorOp = ramp(local, 1.2, 1.7) * (1 - ramp(local, 10.6, 11.2));
+    door.visible = doorOp > 0;
+    door.material.opacity = doorOp * endFade;
+    door.position.set(0.26, FEET + AH / 2, 0.02);
+    abiShadow.material.opacity = doorOp * endFade * 0.9;
+
+    // Beat 3 (11-16.5s): wrapped in the big towel, getting dry
+    const towOp = ramp(local, 11.0, 11.6) * (1 - ramp(local, 16.3, 16.9));
+    towel.visible = towOp > 0;
+    towel.material.opacity = towOp * endFade;
+
+    // Beat 4 (16.5-24s): the boot pour — both of them laughing
+    const bootOp = ramp(local, 16.3, 16.9) * (1 - ramp(local, 23.8, 24.4));
+    const giggle = (local > 16.9 && local < 23.8) ? Math.sin(local * 7) * 0.004 : 0;
+    boot.visible = bootOp > 0;
+    boot.material.opacity = bootOp * endFade;
+    boot.position.y = FEET + BH / 2 + 0.01 + giggle;
+
+    // Beat 5 (24s to the end): dry, warm, and a hug
+    const hugOp = ramp(local, 23.8, 24.4);
+    hug.visible = hugOp > 0;
+    hug.material.opacity = hugOp * endFade;
+  };
+}
+
 async function startAR() {
   const mindarThree = new MindARThree({
     container: document.getElementById('ar-container'),
-    imageTargetSrc: './targets-letters-crop.mind?v=14',
+    imageTargetSrc: './targets-letters-crop.mind?v=15',
     uiLoading: 'no', uiScanning: 'no', uiError: 'no',
     maxTrack: 1,
   });
@@ -552,10 +764,12 @@ async function startAR() {
   try { musicBox.init(new (window.AudioContext || window.webkitAudioContext)()); } catch (e) { /* no audio */ }
   dialogue.init();
   dialogueZelie.init();
+  dialogueAbigail.init();
 
   const updaters = [
     buildBrokenBookScene(mindarThree.addAnchor(0)),
     buildHelperScene(mindarThree.addAnchor(1)),
+    buildRainScene(mindarThree.addAnchor(2)),
   ];
 
   await mindarThree.start();
