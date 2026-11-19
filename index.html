@@ -1154,7 +1154,7 @@ function buildPhotoStoryScene(anchor) {
   // Frame opening measured from the card art itself (gold border lines):
   // center x +0.006, width 0.568, height 0.667.
   const RX0 = -0.278, RX1 = 0.290, RY0 = -0.226, RY1 = 0.441;
-  const CX = (RX0 + RX1) / 2;
+  const CX = (RX0 + RX1) / 2, CY = (RY0 + RY1) / 2;
 
   function gridSprite(url, cols, rows, w) {
     const tex = new THREE.TextureLoader().load(url);
@@ -1170,14 +1170,19 @@ function buildPhotoStoryScene(anchor) {
         this.tex.offset.y = (this.rows - 1 - Math.floor(f / this.cols)) / this.rows;
       } };
   }
-  const stairs = gridSprite('./sprite-kids-stairs.webp', 10, 5, 0.52);
+  // Both phases play as a PICTURE inside the frame: full interior width,
+  // centered on the interior's middle (Flor: not to one side, not at the
+  // bottom). The stairs keep only a small downward drift as they descend.
+  const stairs = gridSprite('./sprite-kids-stairs.webp', 10, 5, 0.56);
   stairs.mesh.geometry.dispose();
-  stairs.mesh.geometry = new THREE.PlaneGeometry(0.52, 0.52 * (400 / 689));
-  stairs.mesh.position.set(CX, 0.17, 0.02);
-  const tree = gridSprite('./sprite-family-tree.webp', 8, 5, 0.53);
+  stairs.mesh.geometry = new THREE.PlaneGeometry(0.56, 0.56 * (400 / 689));
+  // The staircase's visual mass sits at x ~0.43 of its cell, so the mesh is
+  // shifted +0.04 to put the PICTURE's center in the frame's center.
+  stairs.mesh.position.set(CX + 0.04, CY + 0.03, 0.02);
+  const tree = gridSprite('./sprite-family-tree.webp', 8, 5, 0.56);
   tree.mesh.geometry.dispose();
-  tree.mesh.geometry = new THREE.PlaneGeometry(0.53, 0.53 * (400 / 711));
-  tree.mesh.position.set(CX, RY0 + 0.005 + (0.53 * (400 / 711)) / 2, 0.021);
+  tree.mesh.geometry = new THREE.PlaneGeometry(0.56, 0.56 * (400 / 711));
+  tree.mesh.position.set(CX, CY, 0.021);
 
   // Snow inside the frame
   const SNOW = 85;
@@ -1290,7 +1295,7 @@ function buildPhotoStoryScene(anchor) {
     if (local < 5) {
       aOp = Math.min(1, local / 0.4);
       stairs.setFrame(Math.min(49, Math.floor(local * 10)));
-      stairs.mesh.position.y = 0.17 - 0.08 * (local / 5);
+      stairs.mesh.position.y = (CY + 0.03) - 0.06 * (local / 5);
     } else if (local < 5.6) {
       const q = (local - 5) / 0.6;
       aOp = 1 - q; bOp = q;
@@ -1305,11 +1310,11 @@ function buildPhotoStoryScene(anchor) {
       const q = (local - 13.5) / 0.7;
       bOp = 1 - q; aOp = q;
       stairs.setFrame(0);
-      stairs.mesh.position.y = 0.17;
+      stairs.mesh.position.y = CY + 0.03;
     } else {
       aOp = 1;
       stairs.setFrame(Math.floor((local - 14.2) * 10));
-      stairs.mesh.position.y = 0.17 - 0.08 * ((local - 14.2) / 5);
+      stairs.mesh.position.y = (CY + 0.03) - 0.06 * ((local - 14.2) / 5);
     }
     stairs.mat.opacity = aOp;
     tree.mat.opacity = bOp;
