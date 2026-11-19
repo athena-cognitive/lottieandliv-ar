@@ -190,6 +190,7 @@ const dialogue = {
 // A true story from the Sun Class: a library book was torn, Charlotte brought
 // it straight to Miss Stéphanie, they fixed it together with tape, and then
 // Miss Stéphanie read it to her. Starts the instant the card is found.
+// V6: pose smoothing steadies the picture; Stéphanie rebuilt as fresh PNGs.
 // V5 (Flor): the classroom stays — it is the best part — but as a soft stage
 // whose edges melt into the card (no hard rectangle, no white square), the
 // cast standing on its rug. Small cast near the card's center, where the
@@ -200,6 +201,32 @@ function buildBrokenBookScene(anchor) {
   const ramp = (t, a, b) => clamp01((t - a) / (b - a));
   const easeOut = q => 1 - Math.pow(1 - q, 3);
 
+  // All scene content lives on a "stage" group. Each frame the stage
+  // counter-moves against the raw tracking pose with a gently smoothed
+  // pose, which calms the jitter of this pale card (its soft artwork gives
+  // the tracker fewer features to lock onto than the Christmas cards).
+  const stage = new THREE.Group();
+  stage.matrixAutoUpdate = false;
+  anchor.group.add(stage);
+  const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
+  const _rawP = new THREE.Vector3(), _rawQ = new THREE.Quaternion(), _rawS = new THREE.Vector3();
+  const _smP = new THREE.Vector3(), _smQ = new THREE.Quaternion();
+  let _smInit = false;
+  function smoothStage() {
+    _rawM.copy(anchor.group.matrix);
+    _rawM.decompose(_rawP, _rawQ, _rawS);
+    if (!_smInit || _smP.distanceTo(_rawP) > 0.35) {
+      _smP.copy(_rawP); _smQ.copy(_rawQ); _smInit = true;
+    } else {
+      _smP.lerp(_rawP, 0.40);
+      _smQ.slerp(_rawQ, 0.40);
+    }
+    _smM.compose(_smP, _smQ, _rawS);
+    _invM.copy(_rawM).invert();
+    stage.matrix.multiplyMatrices(_invM, _smM);
+    stage.matrixWorldNeedsUpdate = true;
+  }
+
   function sprite(url, w, h, z) {
     const tex = new THREE.TextureLoader().load(url);
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -207,7 +234,7 @@ function buildBrokenBookScene(anchor) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     m.position.z = z;
     m.visible = false;
-    anchor.group.add(m);
+    stage.add(m);
     return m;
   }
 
@@ -219,17 +246,17 @@ function buildBrokenBookScene(anchor) {
   const charlotte = sprite('./sprite-charlotte-walk.webp', CW, CH, 0.02);
   const charShadow = makeShadow(0.26, 0.07);
   charShadow.position.set(-0.36, FEET + 0.010, 0.006);
-  anchor.group.add(charShadow);
+  stage.add(charShadow);
 
-  const SH = 0.64, SW1 = SH * (1108 / 1970), SWT = SH * (848 / 2009);
-  const steph = sprite('./sprite-stephanie-stand.webp', SW1, SH, 0.02);
-  const stephTape = sprite('./sprite-stephanie-tape.webp', SWT, SH, 0.02);
+  const SH = 0.60, SW1 = SH * (1108 / 1970), SWT = SH * (848 / 2009);
+  const steph = sprite('./steph-stand.png', SW1, SH, 0.02);
+  const stephTape = sprite('./steph-tape.png', SWT, SH, 0.02);
   const WW = SH * (828 / 1018), WWT = SH * (1200 / 1455);
-  const stephWalk = sprite('./sprite-stephanie-walk.webp', WW, SH, 0.02);       // faces left
-  const stephWalkTape = sprite('./sprite-stephanie-walk-tape.webp', WWT, SH, 0.02); // faces left, tape up
+  const stephWalk = sprite('./steph-walk.png', WW, SH, 0.02);       // faces left
+  const stephWalkTape = sprite('./steph-walk-tape.png', WWT, SH, 0.02); // faces left, tape up
   const stephShadow = makeShadow(0.32, 0.08);
   stephShadow.position.set(0.14, FEET + 0.010, 0.006);
-  anchor.group.add(stephShadow);
+  stage.add(stephShadow);
 
   const FW = 0.80, FH = FW * (872 / 1200);
   const fix = sprite('./sprite-fix-together.webp', FW, FH, 0.02);
@@ -244,7 +271,7 @@ function buildBrokenBookScene(anchor) {
   anchor.onTargetFound = () => { hint.style.display = 'none'; pendingStart = true; };
   anchor.onTargetLost = () => {
     hint.style.display = 'block';
-    foundAt = null; pendingStart = false;
+    foundAt = null; pendingStart = false; _smInit = false;
     if (voiceOn) { dialogue.stop(); voiceOn = false; }
     for (const m of all) m.visible = false;
     charShadow.material.opacity = 0; stephShadow.material.opacity = 0;
@@ -253,9 +280,11 @@ function buildBrokenBookScene(anchor) {
   return (t, dt) => {
     if (pendingStart) {
       foundAt = t; pendingStart = false; prevLocal = 0;
+      _smInit = false;
       dialogue.start(); voiceOn = true;
     }
     if (foundAt === null) return;
+    smoothStage();
 
     const local = (t - foundAt) % LOOP;
     if (local < prevLocal && voiceOn) dialogue.start(); // loop restarted: voices again
