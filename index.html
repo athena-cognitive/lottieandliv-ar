@@ -179,19 +179,22 @@ function buildReindeerScene(anchor) {
   };
 }
 
-// ---------- Scene 2 (redesigned Nov 18, v2): the fireplace STORY (targets 2 & 3) ----------
-// Flor's story, restaged after her "very bad design" verdict on v1 (a giant
-// close-up Santa who never read as coming out of the fireplace, and wide
-// opaque blocks pasted on the card): (1) a whole, normal-size Santa APPEARS
-// in a swirl of sparkles in front of the card's fireplace, bends down and
-// hoists his sack; (2) he WALKS across the card carrying it (the walk
-// sprite from the first approved scene); (3) at the tree — now a small
-// vignette in the bottom-right corner — he leaves the gifts and vanishes
-// in sparkles as morning light washes in; (4) the family runs in (same
-// small vignette) and opens the presents. The sung English "We Wish You
-// a Merry Christmas" (songPlayerEn) plays throughout, from the first instant.
+// ---------- Scene 2 (redesigned Nov 18, v3): the fireplace STORY (targets 2 & 3) ----------
+// Flor's story, restaged twice from her verdicts. v1: a giant close-up
+// Santa who never read as coming out of the fireplace, wide opaque blocks.
+// v2 fixes from Flor: (a) Santa took too long to appear — now he is simply
+// THERE, full opacity, the instant the card is found, hoisting his sack;
+// (b) the walk ran backwards — the walk sprite faces LEFT, so the mesh is
+// mirrored (scale.x = -1) to face his direction of travel; (c) a white
+// "door" framed Santa-at-the-tree and the family — the vignette sprites
+// are now edge-feathered and warm-graded so they melt into the card's
+// watercolor, and the full-card morning-glow plane is gone. Story: Santa
+// appears at the fireplace, walks across with his sack, leaves the gifts
+// at the tree (small corner vignette), vanishes in sparkles, and the
+// family runs in (same vignette) to open the presents. The sung English
+// "We Wish You a Merry Christmas" (songPlayerEn) plays throughout.
 function buildFireplaceStoryScene(anchor) {
-  const H = 2 / 3, LOOP = 19, FEET = -0.267;
+  const H = 2 / 3, LOOP = 18, FEET = -0.267;
 
   function gridSprite(url, cols, rows, w, cellAspect) {
     const tex = new THREE.TextureLoader().load(url);
@@ -211,13 +214,15 @@ function buildFireplaceStoryScene(anchor) {
   // Beat 1: Santa appears at the fireplace (42 frames, cell 548x400)
   const appear = gridSprite('./sprite-santa-appear.webp', 7, 6, 0.32 * (548 / 400), 400 / 548);
   appear.mesh.position.set(-0.247, FEET + 0.16, 0.02);
-  // Beat 2: the walk, sack on his back (12 frames in a row, cell 465x448)
+  // Beat 2: the walk, sack on his back (12 frames in a row, cell 465x448).
+  // The sprite faces left; mirror the mesh so he walks FORWARD, rightward.
   const walkTex = new THREE.TextureLoader().load('./sprite-santa.png');
   walkTex.colorSpace = THREE.SRGBColorSpace;
   walkTex.repeat.set(1 / 12, 1);
   const walkMat = new THREE.MeshBasicMaterial({ map: walkTex, transparent: true, side: THREE.DoubleSide });
   const walk = new THREE.Mesh(new THREE.PlaneGeometry(0.30 * (465 / 448), 0.30), walkMat);
   walk.visible = false;
+  walk.scale.x = -1;
   walk.position.set(-0.24, FEET + 0.15, 0.021);
   anchor.group.add(walk);
   // Beat 3: Santa leaves the gifts — small vignette (66 frames, cell 609x336)
@@ -234,12 +239,6 @@ function buildFireplaceStoryScene(anchor) {
     new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, opacity: 0.15, depthWrite: false, blending: THREE.AdditiveBlending }));
   fire.position.set(-0.31, -0.113, 0.006);
   anchor.group.add(fire);
-
-  // Morning glow: a warm wash over the whole card for "next day"
-  const morning = new THREE.Mesh(new THREE.PlaneGeometry(1.0, H),
-    new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-  morning.position.set(0, 0, 0.008);
-  anchor.group.add(morning);
 
   // Gold sparkles around the mantel and stockings, twinkling throughout
   const SP = 26;
@@ -279,7 +278,6 @@ function buildFireplaceStoryScene(anchor) {
     foundAt = null;
     appear.mesh.visible = walk.visible = gifts.mesh.visible = family.mesh.visible = false;
     burst.material.opacity = 0;
-    morning.material.opacity = 0;
     if (songOn) { songPlayerEn.release(); songOn = false; }
   };
 
@@ -292,49 +290,44 @@ function buildFireplaceStoryScene(anchor) {
     if (!songOn) { songPlayerEn.acquire(); songOn = true; }
 
     let aOp = 0, wOp = 0, gOp = 0, fOp = 0, burstOp = 0;
-    if (local < 4.1) {
-      aOp = Math.min(1, local / 0.4);
-      appear.setFrame(Math.min(41, Math.floor(local * 10)));
-      const s = 0.92 + 0.08 * Math.min(1, local / 0.6);
-      appear.mesh.scale.set(s, s, 1);
+    if (local < 2.9) {
+      // Santa is THERE from the first instant — a whisper of fade only,
+      // no scale-up, straight into hoisting the sack (frames 4..41).
+      aOp = Math.min(1, local / 0.12);
+      appear.setFrame(Math.min(41, 4 + Math.floor(local * 13)));
       burst.position.set(-0.25, -0.05, 0);
-      burstOp = Math.max(0, 0.9 - local * 1.2);
-    } else if (local < 4.5) {
-      const q = (local - 4.1) / 0.4;
+      burstOp = Math.max(0, 0.9 - local * 1.4);
+    } else if (local < 3.3) {
+      const q = (local - 2.9) / 0.4;
       aOp = 1 - q; wOp = q;
       appear.setFrame(41);
       walkTex.offset.x = 0;
       walk.position.x = -0.24;
-    } else if (local < 6.5) {
+    } else if (local < 5.3) {
       wOp = 1;
-      const dist = (local - 4.5) / 2.0 * 0.30;
+      const dist = (local - 3.3) / 2.0 * 0.30;
       walk.position.x = -0.24 + dist;
       walkTex.offset.x = (Math.floor(dist / 0.30 * 12) % 12) / 12;
-    } else if (local < 7.0) {
-      const q = (local - 6.5) / 0.5;
+    } else if (local < 5.8) {
+      const q = (local - 5.3) / 0.5;
       wOp = 1 - q; gOp = q;
       walk.position.x = 0.06;
       gifts.setFrame(0);
-    } else if (local < 13.0) {
+    } else if (local < 11.8) {
       gOp = 1;
-      gifts.setFrame(Math.min(65, Math.floor((local - 7.0) * 11)));
-    } else if (local < 13.8) {
-      gOp = 1 - (local - 13.0) / 0.8;
+      gifts.setFrame(Math.min(65, Math.floor((local - 5.8) * 11)));
+    } else if (local < 12.6) {
+      gOp = 1 - (local - 11.8) / 0.8;
       gifts.setFrame(65);
       burst.position.set(0.13, -0.16, 0);
-      burstOp = Math.sin((local - 13.0) / 0.8 * Math.PI) * 0.95;
-    } else if (local < 18.6) {
-      fOp = Math.min(1, (local - 13.8) / 0.4);
-      family.setFrame(Math.min(52, Math.floor((local - 13.8) * 11)));
+      burstOp = Math.sin((local - 11.8) / 0.8 * Math.PI) * 0.95;
+    } else if (local < 17.4) {
+      fOp = Math.min(1, (local - 12.6) / 0.4);
+      family.setFrame(Math.min(52, Math.floor((local - 12.6) * 11)));
     } else {
-      fOp = 1 - (local - 18.6) / 0.4;
+      fOp = 1 - (local - 17.4) / 0.6;
       family.setFrame(52);
     }
-    morning.material.opacity =
-      local < 13.0 ? 0 :
-      local < 14.7 ? 0.30 * (local - 13.0) / 1.7 :
-      local < 17.5 ? 0.30 :
-      Math.max(0, 0.30 * (1 - (local - 17.5) / 1.5));
     burst.material.opacity = burstOp;
     appear.mat.opacity = aOp;
     walkMat.opacity = wOp;
