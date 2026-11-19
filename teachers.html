@@ -166,25 +166,29 @@ const musicBox = {
 // All five lines are mixed into a single audio file at their story moments
 // (Charlotte 3.8s & 17.8s, Stéphanie 8.1s, 15.3s & 24.4s). One element means
 // one unlock in the Start tap and no voices piling up at the beginning.
-const dialogue = {
-  el: null,
-  init() {
-    try {
-      this.el = new Audio('./dialogue-track.mp3?v=10');
-      this.el.preload = 'auto';
-      const p = this.el.play();
-      if (p && p.then) p.then(() => { this.el.pause(); this.el.currentTime = 0; }).catch(() => {});
-    } catch (e) { /* no audio */ }
-  },
-  start() {
-    if (!this.el) return;
-    try { this.el.currentTime = 0; this.el.play().catch(() => {}); } catch (e) { /* no audio */ }
-  },
-  stop() {
-    if (!this.el) return;
-    try { this.el.pause(); this.el.currentTime = 0; } catch (e) { /* no audio */ }
-  }
-};
+function makeDialogue(src) {
+  return {
+    el: null,
+    init() {
+      try {
+        this.el = new Audio(src);
+        this.el.preload = 'auto';
+        const p = this.el.play();
+        if (p && p.then) p.then(() => { this.el.pause(); this.el.currentTime = 0; }).catch(() => {});
+      } catch (e) { /* no audio */ }
+    },
+    start() {
+      if (!this.el) return;
+      try { this.el.currentTime = 0; this.el.play().catch(() => {}); } catch (e) { /* no audio */ }
+    },
+    stop() {
+      if (!this.el) return;
+      try { this.el.pause(); this.el.currentTime = 0; } catch (e) { /* no audio */ }
+    }
+  };
+}
+const dialogue = makeDialogue('./dialogue-track.mp3?v=11');
+const dialogueZelie = makeDialogue('./dialogue-track-zelie.mp3?v=11');
 
 // ---------- The Broken Book: Charlotte & Miss Stéphanie (target 0) ----------
 // A true story from the Sun Class: a library book was torn, Charlotte brought
@@ -247,32 +251,32 @@ function buildBrokenBookScene(anchor) {
   }
 
   // The classroom as a soft stage in the middle of the card
-  const room = sprite('./classroom-soft.webp?v=10', 0.94, 1.16, 0.001);
+  const room = sprite('./classroom-soft.webp?v=11', 0.94, 1.16, 0.001);
   room.renderOrder = 0;
   room.position.set(0, -0.02, 0.001);
 
   const CH = 0.50, CW = CH * (965 / 1371);
-  const charlotte = sprite('./sprite-charlotte-walk.webp?v=10', CW, CH, 0.032);
+  const charlotte = sprite('./sprite-charlotte-walk.webp?v=11', CW, CH, 0.032);
   charlotte.renderOrder = 3;
   const charShadow = makeShadow(0.26, 0.07);
   charShadow.position.set(-0.36, FEET + 0.010, 0.006);
   stage.add(charShadow);
 
   const SH = 0.60, SW1 = SH * (1108 / 1970), SWT = SH * (1000 / 1356);
-  const steph = sprite('./steph-stand.png?v=10', SW1, SH, 0.02);
-  const stephTape = sprite('./steph-tape.png?v=10', SWT, SH, 0.02);
+  const steph = sprite('./steph-stand.png?v=11', SW1, SH, 0.02);
+  const stephTape = sprite('./steph-tape.png?v=11', SWT, SH, 0.02);
   const WW = SH * (828 / 1018), WWT = SH * (1200 / 1455);
-  const stephWalk = sprite('./steph-walk.png?v=10', WW, SH, 0.02);       // faces left
-  const stephWalkTape = sprite('./steph-walk-tape.png?v=10', WWT, SH, 0.02); // faces left, tape up
+  const stephWalk = sprite('./steph-walk.png?v=11', WW, SH, 0.02);       // faces left
+  const stephWalkTape = sprite('./steph-walk-tape.png?v=11', WWT, SH, 0.02); // faces left, tape up
   const stephShadow = makeShadow(0.32, 0.08);
   stephShadow.position.set(0.14, FEET + 0.010, 0.006);
   stage.add(stephShadow);
 
   const FW = 0.80, FH = FW * (872 / 1200);
-  const fix = sprite('./sprite-fix-together.webp?v=10', FW, FH, 0.02);
+  const fix = sprite('./sprite-fix-together.webp?v=11', FW, FH, 0.02);
   fix.position.set(0, FEET + FH / 2 + 0.01, 0.02);
   const RW = 0.80, RH = RW * (884 / 1200);
-  const reading = sprite('./sprite-reading.webp?v=10', RW, RH, 0.02);
+  const reading = sprite('./sprite-reading.webp?v=11', RW, RH, 0.02);
   reading.position.set(0, FEET + RH / 2 + 0.01, 0.02);
 
   for (const m of [steph, stephTape, stephWalk, stephWalkTape, fix, reading]) m.renderOrder = 2;
@@ -365,10 +369,150 @@ function buildBrokenBookScene(anchor) {
   };
 }
 
+
+// ---------- Miss Zélie's Helper: Charlotte & Madame Zélie (target 1) ----------
+// A true story: after a rough night (baby Olivia had a stomachache), Charlotte
+// arrived at school tired. Miss Zélie smiled and asked her to help prepare the
+// day's activities; walking and working together, Charlotte forgot she was
+// tired. Same stage, smoothing and draw-order rules as the Broken Book.
+function buildHelperScene(anchor) {
+  const LOOP = 30, FEET = -0.40;
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+  const ramp = (t, a, b) => clamp01((t - a) / (b - a));
+  const easeOut = q => 1 - Math.pow(1 - q, 3);
+
+  const stage = new THREE.Group();
+  stage.matrixAutoUpdate = false;
+  anchor.group.add(stage);
+  const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
+  const _rawP = new THREE.Vector3(), _rawQ = new THREE.Quaternion(), _rawS = new THREE.Vector3();
+  const _smP = new THREE.Vector3(), _smQ = new THREE.Quaternion();
+  let _smInit = false;
+  function smoothStage() {
+    _rawM.copy(anchor.group.matrix);
+    _rawM.decompose(_rawP, _rawQ, _rawS);
+    const dPos = _smP.distanceTo(_rawP) / Math.max(1e-6, _rawS.x);
+    const dAng = _smInit ? _smQ.angleTo(_rawQ) : 0;
+    if (!_smInit || dPos > 0.35) {
+      _smP.copy(_rawP); _smQ.copy(_rawQ); _smInit = true;
+    } else if (dPos < 0.0015 && dAng < 0.002) {
+      // micro-jitter only: hold perfectly still
+    } else {
+      _smP.lerp(_rawP, 0.15);
+      _smQ.slerp(_rawQ, 0.15);
+    }
+    _smM.compose(_smP, _smQ, _rawS);
+    _invM.copy(_rawM).invert();
+    stage.matrix.multiplyMatrices(_invM, _smM);
+    stage.matrixWorldNeedsUpdate = true;
+  }
+
+  function sprite(url, w, h, z) {
+    const tex = new THREE.TextureLoader().load(url);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, opacity: 0, depthWrite: false });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    m.position.z = z;
+    m.visible = false;
+    stage.add(m);
+    return m;
+  }
+
+  const room = sprite('./classroom-soft.webp?v=11', 0.94, 1.16, 0.001);
+  room.position.set(0, -0.02, 0.001);
+  room.renderOrder = 0;
+
+  const TH = 0.50, TW = TH * (755 / 1369);
+  const tired = sprite('./sprite-charlotte-tired.webp?v=11', TW, TH, 0.032);
+  tired.renderOrder = 3;
+  const charShadow = makeShadow(0.24, 0.07);
+  charShadow.position.set(-0.36, FEET + 0.010, 0.006);
+  charShadow.renderOrder = 1;
+  stage.add(charShadow);
+
+  const ZH = 0.60, ZW = ZH * (972 / 1940);
+  const zelie = sprite('./sprite-zelie-welcome.webp?v=11', ZW, ZH, 0.02);
+  zelie.renderOrder = 2;
+  const zelShadow = makeShadow(0.30, 0.08);
+  zelShadow.position.set(0.15, FEET + 0.010, 0.006);
+  zelShadow.renderOrder = 1;
+  stage.add(zelShadow);
+
+  const WW2 = 0.72, WH2 = WW2 / (1029 / 1215);
+  const walk = sprite('./sprite-zelie-walk.webp?v=11', WW2, WH2, 0.02);
+  walk.renderOrder = 2;
+  const TBW = 0.86, TBH = TBW / (1200 / 892);
+  const table = sprite('./sprite-zelie-table.webp?v=11', TBW, TBH, 0.02);
+  table.renderOrder = 2;
+  table.position.set(0, FEET + TBH / 2 + 0.01, 0.02);
+
+  const all = [room, tired, zelie, walk, table];
+  let foundAt = null, pendingStart = false, voiceOn = false, prevLocal = 0;
+
+  anchor.onTargetFound = () => { hint.style.display = 'none'; pendingStart = true; };
+  anchor.onTargetLost = () => {
+    hint.style.display = 'block';
+    foundAt = null; pendingStart = false; _smInit = false;
+    if (voiceOn) { dialogueZelie.stop(); voiceOn = false; }
+    for (const m of all) m.visible = false;
+    charShadow.material.opacity = 0; zelShadow.material.opacity = 0;
+  };
+
+  return (t, dt) => {
+    if (pendingStart) {
+      foundAt = t; pendingStart = false; prevLocal = 0; _smInit = false;
+      dialogueZelie.start(); voiceOn = true;
+    }
+    if (foundAt === null) return;
+    smoothStage();
+
+    const local = (t - foundAt) % LOOP;
+    if (local < prevLocal && voiceOn) dialogueZelie.start(); // loop restarted
+    prevLocal = local;
+
+    const endFade = 1 - ramp(local, 29.3, 30.0);
+
+    // The classroom melts in, from the first instant
+    room.visible = true;
+    room.material.opacity = ramp(local, 0, 0.4) * endFade;
+
+    // Beat 1 (0-4s): Charlotte walks in slowly, sleepy, rubbing her eye
+    const walkQ = easeOut(ramp(local, 0, 4.0));
+    const cx = -0.36 + walkQ * 0.22;
+    const cBob = local < 4.0 ? Math.abs(Math.sin(local * 5)) * 0.006 : 0;
+    const tOp = ramp(local, 0, 0.3) * (1 - ramp(local, 12.6, 12.8));
+    tired.visible = tOp > 0;
+    tired.material.opacity = tOp * endFade;
+    tired.position.set(cx, FEET + TH / 2 + cBob, 0.032);
+    charShadow.position.x = cx;
+    charShadow.material.opacity = tired.material.opacity * 0.9;
+
+    // Miss Zélie is there, smiling, calling her over (0.5s in)
+    const zOp = ramp(local, 0.5, 0.9) * (1 - ramp(local, 12.6, 12.8));
+    zelie.visible = zOp > 0;
+    zelie.material.opacity = zOp * endFade;
+    zelie.position.set(0.15, FEET + ZH / 2, 0.02);
+    zelShadow.material.opacity = zelie.material.opacity * 0.9;
+
+    // Beat 2 (12.8s): hand in hand, they walk to the table, talking
+    const wOp = ramp(local, 12.8, 13.2) * (1 - ramp(local, 18.4, 18.8));
+    const wx = -0.03 + ramp(local, 12.8, 18.6) * 0.06;
+    const wBob = (local > 12.8 && local < 18.6) ? Math.abs(Math.sin(local * 6)) * 0.006 : 0;
+    walk.visible = wOp > 0;
+    walk.material.opacity = wOp * endFade;
+    walk.position.set(wx, FEET + WH2 / 2 + wBob, 0.02);
+
+    // Beat 3 (18.6s): at the little table, preparing together — Charlotte is bright again
+    const tbOp = ramp(local, 18.6, 19.2);
+    table.visible = tbOp > 0;
+    table.material.opacity = tbOp * endFade;
+  };
+}
+
 async function startAR() {
   const mindarThree = new MindARThree({
     container: document.getElementById('ar-container'),
-    imageTargetSrc: './targets-teachers.mind?v=10',
+    imageTargetSrc: './targets-teachers-2.mind?v=11',
     uiLoading: 'no', uiScanning: 'no', uiError: 'no',
     maxTrack: 1,
   });
@@ -378,9 +522,11 @@ async function startAR() {
   // music box is allowed to make sound later when the card is found.
   try { musicBox.init(new (window.AudioContext || window.webkitAudioContext)()); } catch (e) { /* no audio */ }
   dialogue.init();
+  dialogueZelie.init();
 
   const updaters = [
     buildBrokenBookScene(mindarThree.addAnchor(0)),
+    buildHelperScene(mindarThree.addAnchor(1)),
   ];
 
   await mindarThree.start();
