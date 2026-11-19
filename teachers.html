@@ -210,7 +210,7 @@ function releaseLock(id) {
   if (cardLock.owner !== id) return;
   cardLock.owner = null;
   cardLock.lastOwner = id;
-  cardLock.freeAt = arNow + 2.5;
+  cardLock.freeAt = arNow + 0.9;
 }
 
 // ---------- The Broken Book: Charlotte & Miss Stéphanie (target 0) ----------
@@ -235,7 +235,7 @@ function buildBrokenBookScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.position.y = -0.2929;
+  cardFrame.position.y = -0.2997;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -308,11 +308,13 @@ function buildBrokenBookScene(anchor) {
   for (const m of [steph, stephTape, stephWalk, stephWalkTape, fix, reading]) m.renderOrder = 2;
   charShadow.renderOrder = 1; stephShadow.renderOrder = 1;
   const all = [room, charlotte, steph, stephTape, stephWalk, stephWalkTape, fix, reading];
-  let foundAt = null, pendingStart = false, voiceOn = false, prevLocal = 0;
+  let foundAt = null, pendingStart = false, voiceOn = false, prevLocal = 0, pendingClaim = false;
 
-  anchor.onTargetFound = () => { if (!claimLock('steph')) return; hint.style.display = 'none'; pendingStart = true; };
+  const ID = 'steph';
+  anchor.onTargetFound = () => { if (!claimLock('steph')) { pendingClaim = true; return; } hint.style.display = 'none'; pendingStart = true; };
   anchor.onTargetLost = () => {
     releaseLock('steph');
+    pendingClaim = false;
     hint.style.display = 'block';
     foundAt = null; pendingStart = false; _smInit = false;
     if (voiceOn) { dialogue.stop(); voiceOn = false; }
@@ -321,6 +323,11 @@ function buildBrokenBookScene(anchor) {
   };
 
   return (t, dt) => {
+    if (pendingClaim && anchor.group.visible && claimLock(ID)) {
+      pendingClaim = false;
+      hint.style.display = 'none';
+      pendingStart = true;
+    }
     if (pendingStart) {
       foundAt = t; pendingStart = false; prevLocal = 0;
       _smInit = false;
@@ -411,7 +418,7 @@ function buildHelperScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.position.y = -0.2929;
+  cardFrame.position.y = -0.2997;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -477,11 +484,13 @@ function buildHelperScene(anchor) {
   table.position.set(0, FEET + TBH / 2 + 0.01, 0.02);
 
   const all = [room, tired, zelie, walk, table];
-  let foundAt = null, pendingStart = false, voiceOn = false, prevLocal = 0;
+  let foundAt = null, pendingStart = false, voiceOn = false, prevLocal = 0, pendingClaim = false;
 
-  anchor.onTargetFound = () => { if (!claimLock('zelie')) return; hint.style.display = 'none'; pendingStart = true; };
+  const ID = 'zelie';
+  anchor.onTargetFound = () => { if (!claimLock('zelie')) { pendingClaim = true; return; } hint.style.display = 'none'; pendingStart = true; };
   anchor.onTargetLost = () => {
     releaseLock('zelie');
+    pendingClaim = false;
     hint.style.display = 'block';
     foundAt = null; pendingStart = false; _smInit = false;
     if (voiceOn) { dialogueZelie.stop(); voiceOn = false; }
@@ -490,6 +499,11 @@ function buildHelperScene(anchor) {
   };
 
   return (t, dt) => {
+    if (pendingClaim && anchor.group.visible && claimLock(ID)) {
+      pendingClaim = false;
+      hint.style.display = 'none';
+      pendingStart = true;
+    }
     if (pendingStart) {
       foundAt = t; pendingStart = false; prevLocal = 0; _smInit = false;
       dialogueZelie.start(); voiceOn = true;
@@ -556,7 +570,7 @@ function buildRainScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.position.y = -0.2929;
+  cardFrame.position.y = -0.2997;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -656,11 +670,13 @@ function buildRainScene(anchor) {
   hug.position.set(0, FEET + HH / 2 + 0.01, 0.02);
 
   const all = [yard, room, play, soaked, door, towel, boot, hug];
-  let foundAt = null, pendingStart = false, voiceOn = false, prevLocal = 0;
+  let foundAt = null, pendingStart = false, voiceOn = false, prevLocal = 0, pendingClaim = false;
 
-  anchor.onTargetFound = () => { if (!claimLock('abigail')) return; hint.style.display = 'none'; pendingStart = true; };
+  const ID = 'abigail';
+  anchor.onTargetFound = () => { if (!claimLock('abigail')) { pendingClaim = true; return; } hint.style.display = 'none'; pendingStart = true; };
   anchor.onTargetLost = () => {
     releaseLock('abigail');
+    pendingClaim = false;
     hint.style.display = 'block';
     foundAt = null; pendingStart = false; _smInit = false;
     if (voiceOn) { dialogueAbigail.stop(); voiceOn = false; }
@@ -671,6 +687,11 @@ function buildRainScene(anchor) {
   };
 
   return (t, dt) => {
+    if (pendingClaim && anchor.group.visible && claimLock(ID)) {
+      pendingClaim = false;
+      hint.style.display = 'none';
+      pendingStart = true;
+    }
     if (pendingStart) {
       foundAt = t; pendingStart = false; prevLocal = 0; _smInit = false;
       dialogueAbigail.start(); voiceOn = true;
@@ -765,7 +786,7 @@ function buildLotoScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.position.y = -0.2929;
+  cardFrame.position.y = -0.2997;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -806,17 +827,17 @@ function buildLotoScene(anchor) {
   room.position.set(0, -0.02, 0.0015);
   room.renderOrder = 0;
 
-  const CW2 = 0.80;
+  const CW2 = 0.70;
   const search = sprite('./sprite-charlotte-loto-search.webp?v=18', CW2, CW2 / (1698 / 1253), 0.02);
   search.renderOrder = 2;
   const found = sprite('./sprite-charlotte-loto-found.webp?v=18', CW2, CW2 / (1640 / 1260), 0.02);
   found.renderOrder = 2;
-  const tableShadow = makeShadow(0.72, 0.09);
-  tableShadow.position.set(-0.10, FEET + 0.010, 0.006);
+  const tableShadow = makeShadow(0.62, 0.08);
+  tableShadow.position.set(-0.13, FEET + 0.010, 0.006);
   tableShadow.renderOrder = 1;
   stage.add(tableShadow);
 
-  const IH = 0.60;
+  const IH = 0.64;
   const watch = sprite('./sprite-isin-watch.webp?v=18', IH * (979 / 1677), IH, 0.03);
   watch.renderOrder = 3;
   const point = sprite('./sprite-isin-point.webp?v=18', IH * (1162 / 1636), IH, 0.03);
@@ -860,11 +881,13 @@ function buildLotoScene(anchor) {
   }
 
   const all = [room, search, found, watch, point, clap];
-  let foundAt = null, pendingStart = false, voiceOn = false, prevLocal = 0;
+  let foundAt = null, pendingStart = false, voiceOn = false, prevLocal = 0, pendingClaim = false;
 
-  anchor.onTargetFound = () => { if (!claimLock('isin')) return; hint.style.display = 'none'; pendingStart = true; };
+  const ID = 'isin';
+  anchor.onTargetFound = () => { if (!claimLock('isin')) { pendingClaim = true; return; } hint.style.display = 'none'; pendingStart = true; };
   anchor.onTargetLost = () => {
     releaseLock('isin');
+    pendingClaim = false;
     hint.style.display = 'block';
     foundAt = null; pendingStart = false; _smInit = false;
     if (voiceOn) { dialogueIsin.stop(); voiceOn = false; }
@@ -874,6 +897,11 @@ function buildLotoScene(anchor) {
   };
 
   return (t, dt) => {
+    if (pendingClaim && anchor.group.visible && claimLock(ID)) {
+      pendingClaim = false;
+      hint.style.display = 'none';
+      pendingStart = true;
+    }
     if (pendingStart) {
       foundAt = t; pendingStart = false; prevLocal = 0; _smInit = false;
       dialogueIsin.start(); voiceOn = true;
@@ -896,7 +924,7 @@ function buildLotoScene(anchor) {
     search.visible = searchOp > 0;
     search.material.opacity = searchOp * endFade;
     const rock = local < 16 ? Math.sin(local * 1.9) * 0.008 : 0;
-    search.position.set(-0.10, FEET + (CW2 / (1698 / 1253)) / 2 + Math.abs(rock) * 0.4, 0.02);
+    search.position.set(-0.13, FEET + (CW2 / (1698 / 1253)) / 2 + Math.abs(rock) * 0.4, 0.02);
     search.rotation.z = rock * 0.5;
 
     // She found it! (16s on) — the yellow hat held high, happy little bounces
@@ -904,7 +932,7 @@ function buildLotoScene(anchor) {
     found.visible = foundOp > 0;
     found.material.opacity = foundOp * endFade;
     const bounce = (local > 16.3 && local < 24) ? Math.abs(Math.sin((local - 16.3) * 5.2)) * 0.010 : 0;
-    found.position.set(-0.10, FEET + (CW2 / (1640 / 1260)) / 2 + bounce, 0.02);
+    found.position.set(-0.13, FEET + (CW2 / (1640 / 1260)) / 2 + bounce, 0.02);
     tableShadow.material.opacity = Math.max(searchOp, foundOp) * endFade * 0.9;
 
     // Madame Işın watches first (0-10.5s), letting Charlotte try alone
@@ -938,7 +966,7 @@ function buildLotoScene(anchor) {
 async function startAR() {
   const mindarThree = new MindARThree({
     container: document.getElementById('ar-container'),
-    imageTargetSrc: './targets-letters-crop.mind?v=18',
+    imageTargetSrc: './targets-letters-crop.mind?v=19',
     uiLoading: 'no', uiScanning: 'no', uiError: 'no',
     maxTrack: 1,
   });
