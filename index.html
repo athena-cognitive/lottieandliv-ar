@@ -1101,6 +1101,26 @@ function buildDinnerScene(anchor) {
 // alive. The kids wake up and run downstairs, then the family sits in front
 // of the tree opening presents, singing "We Wish You a Merry Christmas"
 // (public domain; original generated performance, English only this time).
+// Song players are mutually exclusive: only one song may ever sound at a
+// time, and a song may only start when its own scene acquires it. The
+// unlock inside init() pauses SYNCHRONOUSLY — pausing later, when the play
+// promise resolves, lets the wrong song start audibly on its own.
+const songPlayers = [];
+function registerSongPlayer(p) { songPlayers.push(p); }
+function pauseOtherSongs(self) {
+  for (const p of songPlayers) {
+    if (p !== self && p.el) { try { p.el.pause(); } catch (e) {} }
+  }
+}
+function unlockAudio(el) {
+  try {
+    const pr = el.play();
+    if (pr) pr.catch(() => {});
+    el.pause();
+    el.currentTime = 0;
+  } catch (e) { /* no audio */ }
+}
+
 function makeSongPlayer(src) {
   return {
     el: null, holders: 0,
@@ -1110,11 +1130,11 @@ function makeSongPlayer(src) {
         this.el = new Audio(src);
         this.el.loop = true;
         this.el.preload = 'auto';
-        const p = this.el.play();
-        if (p) p.then(() => { this.el.pause(); this.el.currentTime = 0; }).catch(() => {});
+        unlockAudio(this.el);
       } catch (e) { /* no audio */ }
     },
     acquire() {
+      pauseOtherSongs(this);
       this.holders++;
       if (this.el && this.holders === 1) {
         try { this.el.currentTime = 0; const p = this.el.play(); if (p) p.catch(() => {}); } catch (e) {}
@@ -1127,6 +1147,7 @@ function makeSongPlayer(src) {
   };
 }
 const songPlayerEn = makeSongPlayer('./song-english.mp3');
+registerSongPlayer(songPlayerEn);
 
 function buildPhotoStoryScene(anchor) {
   const H = 1.5, LOOP = 15;
@@ -1311,11 +1332,11 @@ const songPlayer = {
       this.el.preload = 'auto';
       // Unlock audio inside the Start-button tap so it may play later,
       // when the red card is found.
-      const p = this.el.play();
-      if (p) p.then(() => { this.el.pause(); this.el.currentTime = 0; }).catch(() => {});
+      unlockAudio(this.el);
     } catch (e) { /* no audio */ }
   },
   acquire() {
+    pauseOtherSongs(songPlayer);
     this.holders++;
     if (this.el && this.holders === 1) {
       try { this.el.currentTime = 0; const p = this.el.play(); if (p) p.catch(() => {}); } catch (e) {}
@@ -1326,6 +1347,7 @@ const songPlayer = {
     if (this.el && this.holders === 0) { try { this.el.pause(); } catch (e) {} }
   }
 };
+registerSongPlayer(songPlayer);
 
 // ---------- Scene 8: four kids hold hands and sing (targets 12 & 13, elegant red) ----------
 // A girl from China, a boy from France, a girl from Latin America and a boy
