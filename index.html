@@ -1095,6 +1095,206 @@ function buildDinnerScene(anchor) {
   };
 }
 
+// ---------- Scene 10: a Christmas morning story inside the photo frame (targets 14 & 15) ----------
+// Flor's design: it looks like someone is drawing the family inside the
+// portrait — a golden line draws the frame while the picture is already
+// alive. The kids wake up and run downstairs, then the family sits in front
+// of the tree opening presents, singing "We Wish You a Merry Christmas"
+// (public domain; original generated performance, English only this time).
+function makeSongPlayer(src) {
+  return {
+    el: null, holders: 0,
+    init() {
+      if (this.el) return;
+      try {
+        this.el = new Audio(src);
+        this.el.loop = true;
+        this.el.preload = 'auto';
+        const p = this.el.play();
+        if (p) p.then(() => { this.el.pause(); this.el.currentTime = 0; }).catch(() => {});
+      } catch (e) { /* no audio */ }
+    },
+    acquire() {
+      this.holders++;
+      if (this.el && this.holders === 1) {
+        try { this.el.currentTime = 0; const p = this.el.play(); if (p) p.catch(() => {}); } catch (e) {}
+      }
+    },
+    release() {
+      this.holders = Math.max(0, this.holders - 1);
+      if (this.el && this.holders === 0) { try { this.el.pause(); } catch (e) {} }
+    }
+  };
+}
+const songPlayerEn = makeSongPlayer('./song-english.mp3');
+
+function buildPhotoStoryScene(anchor) {
+  const H = 1.5, LOOP = 15;
+  const RX0 = -0.35, RX1 = 0.19, RY0 = -0.16, RY1 = 0.47;
+  const CX = (RX0 + RX1) / 2;
+
+  function gridSprite(url, cols, rows, w) {
+    const tex = new THREE.TextureLoader().load(url);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.repeat.set(1 / cols, 1 / rows);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, w * (400 / 689)), mat);
+    mesh.visible = false;
+    anchor.group.add(mesh);
+    return { tex, mat, mesh, cols, rows,
+      setFrame(f) {
+        this.tex.offset.x = (f % this.cols) / this.cols;
+        this.tex.offset.y = (this.rows - 1 - Math.floor(f / this.cols)) / this.rows;
+      } };
+  }
+  const stairs = gridSprite('./sprite-kids-stairs.webp', 10, 5, 0.52);
+  stairs.mesh.geometry.dispose();
+  stairs.mesh.geometry = new THREE.PlaneGeometry(0.52, 0.52 * (400 / 689));
+  stairs.mesh.position.set(CX, 0.17, 0.02);
+  const tree = gridSprite('./sprite-family-tree.webp', 8, 5, 0.53);
+  tree.mesh.geometry.dispose();
+  tree.mesh.geometry = new THREE.PlaneGeometry(0.53, 0.53 * (400 / 711));
+  tree.mesh.position.set(CX, RY0 + 0.005 + (0.53 * (400 / 711)) / 2, 0.021);
+
+  // Snow inside the frame
+  const SNOW = 85;
+  const pos = new Float32Array(SNOW * 3);
+  const speed = new Float32Array(SNOW);
+  for (let i = 0; i < SNOW; i++) {
+    pos[i * 3] = RX0 + Math.random() * (RX1 - RX0);
+    pos[i * 3 + 1] = RY0 + Math.random() * (RY1 - RY0);
+    pos[i * 3 + 2] = 0.012;
+    speed[i] = 0.025 + Math.random() * 0.05;
+  }
+  const snowGeo = new THREE.BufferGeometry();
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+    map: makeFlakeTexture('rgba(255,255,255,1)', 'rgba(255,255,255,.85)'),
+    size: 0.015, transparent: true, depthWrite: false, opacity: 0.35
+  }));
+  anchor.group.add(snow);
+
+  // Twinkles on the card's painted baubles
+  const X = fx => fx - 0.5, Y = fy => H / 2 - fy * H;
+  const glowTexP = makeFlakeTexture('rgba(255,205,110,1)', 'rgba(255,170,70,.85)');
+  const twinkles = [];
+  for (const [i, [fx, fy]] of [[0.095, 0.275], [0.205, 0.20], [0.63, 0.245], [0.645, 0.50], [0.085, 0.555]].entries()) {
+    const g = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.05),
+      new THREE.MeshBasicMaterial({ map: glowTexP, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    g.position.set(X(fx), Y(fy), 0.015);
+    g.userData.i = i;
+    anchor.group.add(g);
+    twinkles.push(g);
+  }
+
+  // The golden line that "draws" the picture's border, with a travelling spark
+  const BX0 = RX0 + 0.012, BX1 = RX1 - 0.012, BY0 = RY0 + 0.012, BY1 = RY1 - 0.012;
+  const BW = BX1 - BX0, BH = BY1 - BY0, TH = 0.008;
+  const edgeMat = () => new THREE.MeshBasicMaterial({ color: 0xffd882, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  const edges = [];
+  for (let i = 0; i < 4; i++) {
+    const horiz = i % 2 === 0;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(horiz ? BW : TH, horiz ? TH : BH), edgeMat());
+    m.position.z = 0.03;
+    anchor.group.add(m);
+    edges.push(m);
+  }
+  const spark = new THREE.Mesh(new THREE.PlaneGeometry(0.04, 0.04),
+    new THREE.MeshBasicMaterial({ map: glowTexP, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  spark.position.z = 0.032;
+  anchor.group.add(spark);
+
+  function drawBorder(p, t) {
+    const op = p < 1 ? 0.9 : 0.30 + 0.06 * Math.sin(t * 2.0);
+    const es = [0, 1, 2, 3].map(i => Math.min(1, Math.max(0, p * 4 - i)));
+    edges[0].scale.x = Math.max(es[0], 0.0001);
+    edges[0].position.x = BX0 + BW * es[0] / 2; edges[0].position.y = BY1;
+    edges[1].scale.y = Math.max(es[1], 0.0001);
+    edges[1].position.x = BX1; edges[1].position.y = BY1 - BH * es[1] / 2;
+    edges[2].scale.x = Math.max(es[2], 0.0001);
+    edges[2].position.x = BX1 - BW * es[2] / 2; edges[2].position.y = BY0;
+    edges[3].scale.y = Math.max(es[3], 0.0001);
+    edges[3].position.x = BX0; edges[3].position.y = BY0 + BH * es[3] / 2;
+    for (const e of edges) e.material.opacity = op;
+    if (p < 1) {
+      const per = 2 * (BW + BH);
+      let d = p * per;
+      let sx, sy;
+      if (d < BW) { sx = BX0 + d; sy = BY1; }
+      else if (d < BW + BH) { sx = BX1; sy = BY1 - (d - BW); }
+      else if (d < 2 * BW + BH) { sx = BX1 - (d - BW - BH); sy = BY0; }
+      else { sx = BX0; sy = BY0 + (d - 2 * BW - BH); }
+      spark.position.x = sx; spark.position.y = sy;
+      spark.material.opacity = 0.95;
+    } else {
+      spark.material.opacity = 0;
+    }
+  }
+
+  let foundAt = null, pendingStart = false, songOn = false;
+  anchor.onTargetFound = () => { hint.style.display = 'none'; pendingStart = true; };
+  anchor.onTargetLost = () => {
+    hint.style.display = 'block';
+    foundAt = null;
+    stairs.mesh.visible = false;
+    tree.mesh.visible = false;
+    if (songOn) { songPlayerEn.release(); songOn = false; }
+  };
+
+  return (t, dt) => {
+    const arr = snowGeo.attributes.position.array;
+    for (let i = 0; i < SNOW; i++) {
+      arr[i * 3 + 1] -= speed[i] * dt;
+      arr[i * 3] += Math.sin(t * 1.4 + i) * 0.0005;
+      if (arr[i * 3 + 1] < RY0) {
+        arr[i * 3 + 1] = RY1;
+        arr[i * 3] = RX0 + Math.random() * (RX1 - RX0);
+      }
+    }
+    snowGeo.attributes.position.needsUpdate = true;
+    for (const g of twinkles) {
+      g.material.opacity = 0.18 + 0.36 * (0.5 + 0.5 * Math.sin(t * 2.0 + g.userData.i * 1.7));
+    }
+
+    if (pendingStart) { foundAt = t; pendingStart = false; }
+    if (foundAt === null) return;
+    const local = (t - foundAt) % LOOP;
+    if (!songOn) { songPlayerEn.acquire(); songOn = true; }
+    snow.material.opacity = 0.35 + 0.6 * Math.min(1, local / 1.5);
+    drawBorder(Math.min(1, local / 2.8), t);
+
+    let aOp = 0, bOp = 0;
+    if (local < 5) {
+      aOp = Math.min(1, local / 0.4);
+      stairs.setFrame(Math.min(49, Math.floor(local * 10)));
+      stairs.mesh.position.y = 0.20 - 0.08 * (local / 5);
+    } else if (local < 5.6) {
+      const q = (local - 5) / 0.6;
+      aOp = 1 - q; bOp = q;
+      stairs.setFrame(49);
+    } else if (local < 13.5) {
+      bOp = 1;
+      const step = Math.floor((local - 5.6) * 8);
+      const span = 2 * (40 - 1);
+      const k = step % span;
+      tree.setFrame(k < 40 ? k : span - k);
+    } else if (local < 14.2) {
+      const q = (local - 13.5) / 0.7;
+      bOp = 1 - q; aOp = q;
+      stairs.setFrame(0);
+      stairs.mesh.position.y = 0.20;
+    } else {
+      aOp = 1;
+      stairs.setFrame(Math.floor((local - 14.2) * 10));
+      stairs.mesh.position.y = 0.20 - 0.08 * ((local - 14.2) / 5);
+    }
+    stairs.mat.opacity = aOp;
+    tree.mat.opacity = bOp;
+    stairs.mesh.visible = aOp > 0.01;
+    tree.mesh.visible = bOp > 0.01;
+  };
+}
+
 // ---------- Sung song player (targets 12 & 13) ----------
 // The choir song is an original generated performance of the public-domain
 // carol "We Wish You a Merry Christmas" — one line each in Mandarin, French,
@@ -1412,10 +1612,11 @@ async function startAR() {
   // music box is allowed to make sound later when a card is found.
   try { musicBox.init(new (window.AudioContext || window.webkitAudioContext)()); } catch (e) { /* no audio */ }
   songPlayer.init();
+  songPlayerEn.init();
 
   // Targets (even = card with code, odd = clean version):
   // 0-1 reindeer, 2-3 fireplace, 4-5 penguins, 6-7 forest fox,
-  // 8-9 winter village, 10-11 elegant green (family dinner), 12-13 elegant red (kids' choir), 14-15 photo frame
+  // 8-9 winter village, 10-11 elegant green (family dinner), 12-13 elegant red (kids' choir), 14-15 photo frame (Christmas morning story)
   const updaters = [
     buildReindeerScene(mindarThree.addAnchor(0)),
     buildReindeerScene(mindarThree.addAnchor(1)),
@@ -1431,8 +1632,8 @@ async function startAR() {
     buildDinnerScene(mindarThree.addAnchor(11)),
     buildChoirScene(mindarThree.addAnchor(12)),
     buildChoirScene(mindarThree.addAnchor(13)),
-    buildPhotoFrameScene(mindarThree.addAnchor(14)),
-    buildPhotoFrameScene(mindarThree.addAnchor(15)),
+    buildPhotoStoryScene(mindarThree.addAnchor(14)),
+    buildPhotoStoryScene(mindarThree.addAnchor(15)),
   ];
 
   await mindarThree.start();
