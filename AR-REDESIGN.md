@@ -119,3 +119,63 @@ Come in from across the table, the way it failed before, and also try it up clos
 The other three letters, and the other three posters, should not start her story. While the page is still far away, the hint should say to come closer, and no story should start. A letter that is too dim or too skewed should keep saying "hold steady" rather than start the wrong one.
 
 Good light, the back camera, Safari. The camera picture stays on the phone.
+
+## FIX-NOTES — overlapping stories and voices
+
+The recognition on `teachers-sun-class.html` is unchanged. Thresholds, the gate, the targets, and the reference images are the same. Zélie's 1.2 second tracking-loss grace and her near-still pose freeze (position, rotation, and smoothed scale) are still in that file, with the same numbers. `teachers-v25.html` is the historical preview and was not edited. The named pages and `teachers.html` were not edited.
+
+### What was actually going wrong
+
+Two separate leaks, both of which grow as the page is used.
+
+1. Start had no re-entry guard. The tap handler called `startAR()`, and `startAR()` constructed a `MindARThree`, a camera stream, and a render loop on every entry. A second tap — or a retry after the first start had already created the camera and then thrown — stacked a second session in the same tab. Each session has its own story and its own voice. That matches "more than one instance in the browser" with only one tab.
+
+2. Inside one session, every confirmed target built a scene and pushed its per-frame updater into a list that runs forever. `stopStory()` only called `onTargetLost` on the one record in `playing`. Anything else that had already started kept its `foundAt` and its `voiceOn`. The scene builders still contain the old self-start: if `claimLock` fails, they set `pendingClaim`, and every frame the updater tries `pendingClaim && group.visible && claimLock(id)` on its own. `claimLock` also returns true when the owner id matches, and every copy of one teacher (parchment, clean, poster) uses the same id, so a second copy of her scene was allowed to start while the first was live. Two live scenes call two `dialogue.start()`s. Those are four separate audio elements, and `start()` did not stop the others, so the voices play together. A fresh load has no built scenes yet, so the first scan is fine. The pile-up appears after several scans.
+
+### What changed
+
+`playback-v25.js` is the only door.
+
+- `enterSession()` succeeds once per page load. The Start tap claims it before any `await`. `startAR()` also refuses to construct a second MindAR if it is entered again.
+- `play()` stops every scene that has been started, then silences every dialogue track, then arms exactly one scene. Starting the scene that is already playing does nothing, so a story is not restarted over itself.
+- A built scene's updater is wrapped. If that scene is not the armed one, the wrapper returns immediately: no animation, no `pendingClaim` self-start, no audio.
+- `dialogue.start()` now stops the other three tracks first, so a stray start cannot leave a second voice running.
+
+Zélie's grace still returns out of `recognize()` for up to 1.2 seconds of total loss, which means `stopStory()` is not called and her armed updater keeps running. A different target still stops her at once, through the same `stopStory()`, which now stops her completely (scene hidden, her voice stopped, claim released) before any new story can start.
+
+### How it was checked
+
+`node tools/test-playback-v25.mjs` drives the real controller. Each fake scene's updater, if it is allowed to run, shows itself and starts its voice — the same thing `pendingClaim` does. The page's loop is simulated by calling every built updater after every change.
+
+- A second and a third `enterSession()` are refused, and they leave nothing playing.
+- 24 passes over 4 teachers × 3 surfaces, plus a quick switch and a "phone down" each pass: 360 scans. After every step, live scenes, audible tracks, and visible scenes were all exactly one. After each phone-down, all three were zero.
+- Switching one teacher from her letter to her poster stops the letter instance. One voice remains.
+- Playing the story that is already current does not start it again.
+- The Sun Class page source still contains the 1.2 second Zélie grace and the `dPos < 0.03` pose-and-scale freeze.
+
+The fake-camera rig can show one printed image to MindAR. It cannot put the phone down, pick up a different letter, and do that 20 times; that needs the real prints. The overlap is a session and playback bug, and the script above is the check for it.
+
+### On the iPhone
+
+Use the Sun Class link, `teachers-sun-class.html`. Leave `stephanie.html`, `zelie.html`, `abigail.html`, `isin.html`, and `teachers.html` as they are.
+
+Tap Start once. Then:
+
+1. Point at each teacher's parchment letter, clean letter, and poster, several times each. Put the phone down so the story ends before the next one.
+2. While a story is talking, swing to a different letter and hold it. The first voice should stop before the second starts. You should never hear two teachers.
+3. On Zélie's letter, cover the camera for less than a second and uncover it. Her story should continue, not restart, and no second voice should join. Cover it for a few seconds: the story should end and stay quiet.
+4. Repeat until you have done this well past twenty scans.
+
+One picture, one voice, the whole time. A second tap on Start should do nothing.
+
+### Silence before a story
+
+Opening the link and tapping Start used to call `play()` on all four dialogue files, then pause them inside the play promise. That pause often runs before the browser has actually started the file, so the promise's pause does nothing and every track keeps speaking. No letter is required. That is the "I only opened the link and the voices are already mixed."
+
+`init()` now only constructs the audio element, muted, and does not play it. A silent one-sample clip unlocks the iPhone audio session during the Start tap. `dialogue.start()` is refused unless a story is armed, and a `playing` event that arrives while nothing is armed pauses the element again. The stress check covers this: open the session, run every updater, and ask every track to start with no story confirmed. Audible count stays zero, and none of the dialogue `start` methods run.
+
+### Fresh copy on every open
+
+GitHub Pages caches the HTML for ten minutes, and Safari holds it longer. `teachers-sun-class.html` now carries build `sun-20261120c` and, before Start is enabled, fetches `sun-class-build.txt` with `cache: 'no-store'`. If the stamp differs, the page does one `location.replace` onto `?fresh=1&build=<stamp>` and then accepts whatever that load is, even if it still looks old. A failed or slow fetch leaves the page usable. The check is not on a timer, and once Start has been tapped (`window.__sunSession`) a late response cannot navigate away. Same-origin assets on this page (the identity script, the playback script, the `.mind` file, the reference images, the sprites, and the dialogue) are requested as `?b=sun-20261120c`, so a new publish does not mix with files cached under an older query.
+
+When publishing another change, set the same new id in `sun-class-build.txt`, in the `BUILD` constant in the head script, in `data-build`, and on those asset queries.
