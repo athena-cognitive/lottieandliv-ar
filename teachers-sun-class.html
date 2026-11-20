@@ -443,6 +443,7 @@ function buildHelperScene(anchor, fs = 2.273, fy = -0.681) {
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
   const _rawP = new THREE.Vector3(), _rawQ = new THREE.Quaternion(), _rawS = new THREE.Vector3();
   const _smP = new THREE.Vector3(), _smQ = new THREE.Quaternion();
+  const _smS = new THREE.Vector3(1, 1, 1);
   let _smInit = false;
   function smoothStage() {
     _rawM.copy(anchor.group.matrix);
@@ -450,18 +451,21 @@ function buildHelperScene(anchor, fs = 2.273, fy = -0.681) {
     const dPos = _smP.distanceTo(_rawP) / Math.max(1e-6, _rawS.x);
     const dAng = _smInit ? _smQ.angleTo(_rawQ) : 0;
     if (!_smInit || dPos > 0.35) {
-      _smP.copy(_rawP); _smQ.copy(_rawQ); _smInit = true;
-    } else if (dPos < 0.01 && dAng < 0.01) {
-      // Near-still: freeze the rendered pose completely. The earlier
-      // deadband still let the smoothed pose chase tracker noise every
-      // frame, so the whole square kept trembling; holding the last pose
-      // makes it sit still until the phone really moves (then dPos grows
-      // past the window and the lerp below follows again).
+      _smP.copy(_rawP); _smQ.copy(_rawQ); _smS.copy(_rawS); _smInit = true;
+    } else if (dPos < 0.03 && dAng < 0.03) {
+      // Near-still: freeze position, rotation AND scale. The room is the
+      // big background, so it shows tremble the small characters hide:
+      // the old code still passed the tracker's raw scale through every
+      // frame (the whole picture breathed) and only froze inside a
+      // window too narrow for this letter's angular noise. Inside this
+      // wider window the rendered pose does not move at all; a real
+      // phone move grows dPos past it and the lerp below follows again.
     } else {
-      _smP.lerp(_rawP, 0.07);
-      _smQ.slerp(_rawQ, 0.07);
+      _smP.lerp(_rawP, 0.05);
+      _smQ.slerp(_rawQ, 0.05);
+      _smS.lerp(_rawS, 0.05);
     }
-    _smM.compose(_smP, _smQ, _rawS);
+    _smM.compose(_smP, _smQ, _smS);
     _invM.copy(_rawM).invert();
     stage.matrix.multiplyMatrices(_invM, _smM);
     stage.matrixWorldNeedsUpdate = true;
