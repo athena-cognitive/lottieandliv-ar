@@ -8,6 +8,13 @@ export function createPlayback(tracks) {
     const rawStart = track.start.bind(track);
     const rawStop = track.stop.bind(track);
     track.start = function exclusiveStart() {
+      // Idle, page load, and the Start tap itself are silence. A track
+      // becomes audible only while a story is the armed one.
+      if (!active || !active.started) {
+        rawStop();
+        flags[i].on = false;
+        return;
+      }
       for (let j = 0; j < tracks.length; j++) {
         if (j !== i) tracks[j].stop();
       }
@@ -88,5 +95,6 @@ export function createPlayback(tracks) {
     liveCount,
     audible,
     active() { return active; },
+    storyArmed() { return !!(active && active.started); },
   };
 }

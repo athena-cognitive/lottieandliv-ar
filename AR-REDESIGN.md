@@ -167,3 +167,15 @@ Tap Start once. Then:
 4. Repeat until you have done this well past twenty scans.
 
 One picture, one voice, the whole time. A second tap on Start should do nothing.
+
+### Silence before a story
+
+Opening the link and tapping Start used to call `play()` on all four dialogue files, then pause them inside the play promise. That pause often runs before the browser has actually started the file, so the promise's pause does nothing and every track keeps speaking. No letter is required. That is the "I only opened the link and the voices are already mixed."
+
+`init()` now only constructs the audio element, muted, and does not play it. A silent one-sample clip unlocks the iPhone audio session during the Start tap. `dialogue.start()` is refused unless a story is armed, and a `playing` event that arrives while nothing is armed pauses the element again. The stress check covers this: open the session, run every updater, and ask every track to start with no story confirmed. Audible count stays zero, and none of the dialogue `start` methods run.
+
+### Fresh copy on every open
+
+GitHub Pages caches the HTML for ten minutes, and Safari holds it longer. `teachers-sun-class.html` now carries build `sun-20261120c` and, before Start is enabled, fetches `sun-class-build.txt` with `cache: 'no-store'`. If the stamp differs, the page does one `location.replace` onto `?fresh=1&build=<stamp>` and then accepts whatever that load is, even if it still looks old. A failed or slow fetch leaves the page usable. The check is not on a timer, and once Start has been tapped (`window.__sunSession`) a late response cannot navigate away. Same-origin assets on this page (the identity script, the playback script, the `.mind` file, the reference images, the sprites, and the dialogue) are requested as `?b=sun-20261120c`, so a new publish does not mix with files cached under an older query.
+
+When publishing another change, set the same new id in `sun-class-build.txt`, in the `BUILD` constant in the head script, in `data-build`, and on those asset queries.

@@ -138,6 +138,21 @@ console.log('starting the story that is already playing does not restart it');
   check('no second start', scene.starts === starts && h.playback.liveCount() === 1 && h.playback.audible() === 1);
 }
 
+console.log('open, Start, blank wall: silence');
+{
+  const h = harness();
+  check('session opens', h.playback.enterSession() === true);
+  // No story is confirmed. Every built updater still runs, and every
+  // track is asked to start, the way a stray unlock or pendingClaim would.
+  for (let i = 0; i < 120; i++) h.frame();
+  for (const track of h.tracks) track.start();
+  h.frame();
+  const s = h.snapshot();
+  check('nothing live on a blank wall', s.live === 0 && s.visible === 0, JSON.stringify(s));
+  check('nothing audible on a blank wall', s.audible === 0 && h.tracks.every((t) => t.starts === 0), 'starts ' + h.tracks.map((t) => t.starts).join(','));
+  check('page init does not play dialogue files', !/init\(\) \{[^}]*\.play\(/.test(readFileSync(new URL('../teachers-sun-class.html', import.meta.url), 'utf8')));
+}
+
 console.log('the page still has the Zélie grace and the near-still pose freeze');
 {
   const html = readFileSync(new URL('../teachers-sun-class.html', import.meta.url), 'utf8');
