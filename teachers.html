@@ -282,8 +282,8 @@ function buildBrokenBookScene(anchor, fs = 2.273, fy = -0.681) {
   room.renderOrder = 0;
   room.position.set(0, -0.02, 0.001);
 
-  const CH = 0.50, CW = CH * (838 / 1362);
-  const charlotte = sprite('./sprite-charlotte-walk.webp?v=22', CW, CH, 0.032);
+  const CH = 0.50, CW = CH * (833 / 1356);
+  const charlotte = sprite('./sprite-charlotte-walk.webp?v=23', CW, CH, 0.032);
   charlotte.renderOrder = 3;
   const charShadow = makeShadow(0.26, 0.07);
   charShadow.position.set(-0.36, FEET + 0.010, 0.006);
@@ -461,8 +461,8 @@ function buildHelperScene(anchor, fs = 2.273, fy = -0.681) {
   room.position.set(0, -0.02, 0.001);
   room.renderOrder = 0;
 
-  const TH = 0.50, TW = TH * (640 / 1354);
-  const tired = sprite('./sprite-charlotte-tired.webp?v=22', TW, TH, 0.032);
+  const TH = 0.50, TW = TH * (635 / 1349);
+  const tired = sprite('./sprite-charlotte-tired.webp?v=23', TW, TH, 0.032);
   tired.renderOrder = 3;
   const charShadow = makeShadow(0.24, 0.07);
   charShadow.position.set(-0.36, FEET + 0.010, 0.006);
@@ -832,9 +832,9 @@ function buildLotoScene(anchor, fs = 2.273, fy = -0.681) {
   room.renderOrder = 0;
 
   const CW2 = 0.70;
-  const search = sprite('./sprite-charlotte-loto-search.webp?v=22', CW2, CW2 / (1696 / 1226), 0.02);
+  const search = sprite('./sprite-charlotte-loto-search.webp?v=23', CW2, CW2 / (1697 / 1225), 0.02);
   search.renderOrder = 2;
-  const found = sprite('./sprite-charlotte-loto-found.webp?v=22', CW2, CW2 / (1633 / 1259), 0.02);
+  const found = sprite('./sprite-charlotte-loto-found.webp?v=23', CW2, CW2 / (1636 / 1259), 0.02);
   found.renderOrder = 2;
   const tableShadow = makeShadow(0.62, 0.08);
   tableShadow.position.set(-0.13, FEET + 0.010, 0.006);
@@ -928,7 +928,7 @@ function buildLotoScene(anchor, fs = 2.273, fy = -0.681) {
     search.visible = searchOp > 0;
     search.material.opacity = searchOp * endFade;
     const rock = local < 16 ? Math.sin(local * 1.9) * 0.008 : 0;
-    search.position.set(-0.13, FEET + (CW2 / (1696 / 1226)) / 2 + Math.abs(rock) * 0.4, 0.02);
+    search.position.set(-0.13, FEET + (CW2 / (1697 / 1225)) / 2 + Math.abs(rock) * 0.4, 0.02);
     search.rotation.z = rock * 0.5;
 
     // She found it! (16s on) — the yellow hat held high, happy little bounces
@@ -936,7 +936,7 @@ function buildLotoScene(anchor, fs = 2.273, fy = -0.681) {
     found.visible = foundOp > 0;
     found.material.opacity = foundOp * endFade;
     const bounce = (local > 16.3 && local < 24) ? Math.abs(Math.sin((local - 16.3) * 5.2)) * 0.010 : 0;
-    found.position.set(-0.13, FEET + (CW2 / (1633 / 1259)) / 2 + bounce, 0.02);
+    found.position.set(-0.13, FEET + (CW2 / (1636 / 1259)) / 2 + bounce, 0.02);
     tableShadow.material.opacity = Math.max(searchOp, foundOp) * endFade * 0.9;
 
     // Madame Işın watches first (0-10.5s), letting Charlotte try alone
@@ -968,9 +968,19 @@ function buildLotoScene(anchor, fs = 2.273, fy = -0.681) {
 }
 
 async function startAR() {
+  const onlyParam = new URLSearchParams(location.search).get('only');
+  const only = onlyParam === null ? -1 : parseInt(onlyParam, 10);
+  const singleMinds = [
+    './targets-single-stephanie.mind?v=23',
+    './targets-single-zelie.mind?v=23',
+    './targets-single-abigail.mind?v=23',
+    './targets-single-isin.mind?v=23',
+  ];
+  const builders = [buildBrokenBookScene, buildHelperScene, buildRainScene, buildLotoScene];
+  const isSingle = only >= 0 && only <= 3;
   const mindarThree = new MindARThree({
     container: document.getElementById('ar-container'),
-    imageTargetSrc: './targets-letters-crop.mind?v=22',
+    imageTargetSrc: isSingle ? singleMinds[only] : './targets-letters-crop.mind?v=22',
     uiLoading: 'no', uiScanning: 'no', uiError: 'no',
     maxTrack: 1,
   });
@@ -984,7 +994,9 @@ async function startAR() {
   dialogueAbigail.init();
   dialogueIsin.init();
 
-  const updaters = [
+  const updaters = isSingle
+    ? [builders[only](mindarThree.addAnchor(0)), builders[only](mindarThree.addAnchor(1), 1.0, 0)]
+    : [
     buildBrokenBookScene(mindarThree.addAnchor(0)),
     buildHelperScene(mindarThree.addAnchor(1)),
     buildRainScene(mindarThree.addAnchor(2)),
