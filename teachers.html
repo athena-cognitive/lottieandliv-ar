@@ -222,7 +222,7 @@ function releaseLock(id) {
 // whose edges melt into the card (no hard rectangle, no white square), the
 // cast standing on its rug. Small cast near the card's center, where the
 // tracking is steadiest. Voices only, no music. Hardened sprite alpha.
-function buildBrokenBookScene(anchor) {
+function buildBrokenBookScene(anchor, fs = 2.273, fy = -0.681) {
   const LOOP = 30, FEET = -0.40;
   const clamp01 = v => Math.max(0, Math.min(1, v));
   const ramp = (t, a, b) => clamp01((t - a) / (b - a));
@@ -235,8 +235,8 @@ function buildBrokenBookScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.scale.setScalar(2.273);
-  cardFrame.position.y = -0.681;
+  cardFrame.scale.setScalar(fs);
+  cardFrame.position.y = fy;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -282,8 +282,8 @@ function buildBrokenBookScene(anchor) {
   room.renderOrder = 0;
   room.position.set(0, -0.02, 0.001);
 
-  const CH = 0.50, CW = CH * (965 / 1371);
-  const charlotte = sprite('./sprite-charlotte-walk.webp?v=13', CW, CH, 0.032);
+  const CH = 0.50, CW = CH * (838 / 1362);
+  const charlotte = sprite('./sprite-charlotte-walk.webp?v=22', CW, CH, 0.032);
   charlotte.renderOrder = 3;
   const charShadow = makeShadow(0.26, 0.07);
   charShadow.position.set(-0.36, FEET + 0.010, 0.006);
@@ -410,7 +410,7 @@ function buildBrokenBookScene(anchor) {
 // arrived at school tired. Miss Zélie smiled and asked her to help prepare the
 // day's activities; walking and working together, Charlotte forgot she was
 // tired. Same stage, smoothing and draw-order rules as the Broken Book.
-function buildHelperScene(anchor) {
+function buildHelperScene(anchor, fs = 2.273, fy = -0.681) {
   const LOOP = 30, FEET = -0.40;
   const clamp01 = v => Math.max(0, Math.min(1, v));
   const ramp = (t, a, b) => clamp01((t - a) / (b - a));
@@ -419,8 +419,8 @@ function buildHelperScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.scale.setScalar(2.273);
-  cardFrame.position.y = -0.681;
+  cardFrame.scale.setScalar(fs);
+  cardFrame.position.y = fy;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -461,8 +461,8 @@ function buildHelperScene(anchor) {
   room.position.set(0, -0.02, 0.001);
   room.renderOrder = 0;
 
-  const TH = 0.50, TW = TH * (755 / 1369);
-  const tired = sprite('./sprite-charlotte-tired.webp?v=13', TW, TH, 0.032);
+  const TH = 0.50, TW = TH * (640 / 1354);
+  const tired = sprite('./sprite-charlotte-tired.webp?v=22', TW, TH, 0.032);
   tired.renderOrder = 3;
   const charShadow = makeShadow(0.24, 0.07);
   charShadow.position.set(-0.36, FEET + 0.010, 0.006);
@@ -564,7 +564,7 @@ function buildHelperScene(anchor) {
 // out of her boots, and made sure she was dry and warm. Bilingual: Charlotte
 // speaks English, Miss Abigail speaks French. The rain starts the instant
 // the letter is found.
-function buildRainScene(anchor) {
+function buildRainScene(anchor, fs = 2.273, fy = -0.681) {
   const LOOP = 32, FEET = -0.40;
   const clamp01 = v => Math.max(0, Math.min(1, v));
   const ramp = (t, a, b) => clamp01((t - a) / (b - a));
@@ -572,8 +572,8 @@ function buildRainScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.scale.setScalar(2.273);
-  cardFrame.position.y = -0.681;
+  cardFrame.scale.setScalar(fs);
+  cardFrame.position.y = fy;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -781,7 +781,7 @@ function buildRainScene(anchor) {
 // Charlotte hesitates she gives one gentle instruction — look carefully, the
 // colors must match — and Charlotte finds the yellow hat all by herself.
 // Bilingual: Charlotte speaks English, Madame Işın speaks French.
-function buildLotoScene(anchor) {
+function buildLotoScene(anchor, fs = 2.273, fy = -0.681) {
   const LOOP = 30, FEET = -0.40;
   const clamp01 = v => Math.max(0, Math.min(1, v));
   const ramp = (t, a, b) => clamp01((t - a) / (b - a));
@@ -789,8 +789,8 @@ function buildLotoScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.scale.setScalar(2.273);
-  cardFrame.position.y = -0.681;
+  cardFrame.scale.setScalar(fs);
+  cardFrame.position.y = fy;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -832,9 +832,9 @@ function buildLotoScene(anchor) {
   room.renderOrder = 0;
 
   const CW2 = 0.70;
-  const search = sprite('./sprite-charlotte-loto-search.webp?v=18', CW2, CW2 / (1698 / 1253), 0.02);
+  const search = sprite('./sprite-charlotte-loto-search.webp?v=22', CW2, CW2 / (1696 / 1226), 0.02);
   search.renderOrder = 2;
-  const found = sprite('./sprite-charlotte-loto-found.webp?v=18', CW2, CW2 / (1640 / 1260), 0.02);
+  const found = sprite('./sprite-charlotte-loto-found.webp?v=22', CW2, CW2 / (1633 / 1259), 0.02);
   found.renderOrder = 2;
   const tableShadow = makeShadow(0.62, 0.08);
   tableShadow.position.set(-0.13, FEET + 0.010, 0.006);
@@ -928,7 +928,7 @@ function buildLotoScene(anchor) {
     search.visible = searchOp > 0;
     search.material.opacity = searchOp * endFade;
     const rock = local < 16 ? Math.sin(local * 1.9) * 0.008 : 0;
-    search.position.set(-0.13, FEET + (CW2 / (1698 / 1253)) / 2 + Math.abs(rock) * 0.4, 0.02);
+    search.position.set(-0.13, FEET + (CW2 / (1696 / 1226)) / 2 + Math.abs(rock) * 0.4, 0.02);
     search.rotation.z = rock * 0.5;
 
     // She found it! (16s on) — the yellow hat held high, happy little bounces
@@ -936,7 +936,7 @@ function buildLotoScene(anchor) {
     found.visible = foundOp > 0;
     found.material.opacity = foundOp * endFade;
     const bounce = (local > 16.3 && local < 24) ? Math.abs(Math.sin((local - 16.3) * 5.2)) * 0.010 : 0;
-    found.position.set(-0.13, FEET + (CW2 / (1640 / 1260)) / 2 + bounce, 0.02);
+    found.position.set(-0.13, FEET + (CW2 / (1633 / 1259)) / 2 + bounce, 0.02);
     tableShadow.material.opacity = Math.max(searchOp, foundOp) * endFade * 0.9;
 
     // Madame Işın watches first (0-10.5s), letting Charlotte try alone
@@ -970,7 +970,7 @@ function buildLotoScene(anchor) {
 async function startAR() {
   const mindarThree = new MindARThree({
     container: document.getElementById('ar-container'),
-    imageTargetSrc: './targets-letters-crop.mind?v=21',
+    imageTargetSrc: './targets-letters-crop.mind?v=22',
     uiLoading: 'no', uiScanning: 'no', uiError: 'no',
     maxTrack: 1,
   });
@@ -989,6 +989,10 @@ async function startAR() {
     buildHelperScene(mindarThree.addAnchor(1)),
     buildRainScene(mindarThree.addAnchor(2)),
     buildLotoScene(mindarThree.addAnchor(3)),
+    buildBrokenBookScene(mindarThree.addAnchor(4), 1.0, 0),
+    buildHelperScene(mindarThree.addAnchor(5), 1.0, 0),
+    buildRainScene(mindarThree.addAnchor(6), 1.0, 0),
+    buildLotoScene(mindarThree.addAnchor(7), 1.0, 0),
   ];
 
   await mindarThree.start();
