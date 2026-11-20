@@ -451,8 +451,12 @@ function buildHelperScene(anchor, fs = 2.273, fy = -0.681) {
     const dAng = _smInit ? _smQ.angleTo(_rawQ) : 0;
     if (!_smInit || dPos > 0.35) {
       _smP.copy(_rawP); _smQ.copy(_rawQ); _smInit = true;
-    } else if (dPos < 0.004 && dAng < 0.005) {
-      // micro-jitter only: hold perfectly still
+    } else if (dPos < 0.01 && dAng < 0.01) {
+      // Near-still: freeze the rendered pose completely. The earlier
+      // deadband still let the smoothed pose chase tracker noise every
+      // frame, so the whole square kept trembling; holding the last pose
+      // makes it sit still until the phone really moves (then dPos grows
+      // past the window and the lerp below follows again).
     } else {
       _smP.lerp(_rawP, 0.07);
       _smQ.slerp(_rawQ, 0.07);
