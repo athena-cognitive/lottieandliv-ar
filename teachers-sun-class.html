@@ -77,6 +77,7 @@ import {
   preparePortrait, prepareName, scoreAgainst, scoreName,
   sampleQuad, createGate,
 } from './identity-v25.js?v=1';
+import { createPlayback } from './playback-v25.js?v=1';
 
 const startPanel = document.getElementById('start-panel');
 const hint = document.getElementById('hint');
@@ -91,6 +92,9 @@ function showError(msg) {
 }
 
 document.getElementById('start-btn').addEventListener('click', async () => {
+  // Claimed synchronously, before the camera await, so a second tap
+  // cannot construct another MindAR session in this tab.
+  if (!playback.enterSession()) return;
   startPanel.style.display = 'none';
   hint.style.display = 'block';
   brand.style.display = 'block';
@@ -208,6 +212,7 @@ const dialogue = makeDialogue('./dialogue-track.mp3?v=13');
 const dialogueZelie = makeDialogue('./dialogue-track-zelie.mp3?v=13');
 const dialogueAbigail = makeDialogue('./dialogue-track-abigail.mp3?v=15');
 const dialogueIsin = makeDialogue('./dialogue-track-isin.mp3?v=18');
+const playback = createPlayback([dialogue, dialogueZelie, dialogueAbigail, dialogueIsin]);
 
 
 // ---------- One card at a time ----------
@@ -1043,7 +1048,13 @@ function loadIdentityRefs() {
   }));
 }
 
+let mindarLive = false;
 async function startAR() {
+  // The Start tap already claimed the session. A second entry — from a
+  // second tap that raced the await, or a retry after this threw — must
+  // not construct another MindAR, camera, or render loop.
+  if (mindarLive) return;
+  mindarLive = true;
   const debugOn = new URLSearchParams(location.search).get('debug') === '1';
   const debugEl = document.getElementById('debug');
   const debugSample = document.getElementById('debug-sample');
@@ -1152,31 +1163,45 @@ async function startAR() {
     ctx.putImageData(img, 0, 0);
   }
 
+  function sceneFor(anchorIndex, teacher) {
+    const anchor = anchors[anchorIndex];
+    if (!anchor.__built) anchor.__built = [];
+    if (anchor.__built[teacher]) return anchor.__built[teacher];
+    const kind = V25_KINDS[anchorIndex];
+    const scale = kind === 'cartoon' ? [1, 0] : kind === 'clean' ? [2.083, -0.64] : [2.273, -0.681];
+    const proxy = { group: anchor.group, onTargetFound: null, onTargetLost: null };
+    const record = {
+      started: false,
+      anchorIndex,
+      teacher,
+      proxy,
+      start() { proxy.onTargetFound(); },
+      stop() { proxy.onTargetLost(); },
+    };
+    // The builder still installs its own onTargetFound, including the old
+    // pendingClaim path. The wrapped updater never runs that path unless
+    // this record is the one story playback.play() has armed.
+    const rawUpdate = builders[teacher](proxy, scale[0], scale[1]);
+    updaters.push(playback.wrap(record, rawUpdate));
+    anchor.__built[teacher] = record;
+    return record;
+  }
+
   function stopStory() {
     zelieLostAt = 0;
-    if (!playing) return;
-    try { playing.proxy.onTargetLost(); } catch (e) { /* scene already reset */ }
+    playback.stopAll();
     playing = null;
     window.__confirmed = null;
   }
 
   function startStory(anchorIndex, teacher) {
-    const anchor = anchors[anchorIndex];
-    const kind = V25_KINDS[anchorIndex];
-    const scale = kind === 'cartoon' ? [1, 0] : kind === 'clean' ? [2.083, -0.64] : [2.273, -0.681];
-    if (!anchor.__built) anchor.__built = [];
-    if (!anchor.__built[teacher]) {
-      const proxy = { group: anchor.group, onTargetFound: null, onTargetLost: null };
-      const updater = builders[teacher](proxy, scale[0], scale[1]);
-      anchor.__built[teacher] = { proxy, updater };
-      updaters.push(updater);
-    }
-    const built = anchor.__built[teacher];
-    built.proxy.onTargetFound();
-    playing = { anchorIndex, teacher, proxy: built.proxy };
+    const record = sceneFor(anchorIndex, teacher);
+    if (playing && playing.record === record) return;
+    playback.play(record);
+    playing = { anchorIndex, teacher, proxy: record.proxy, record };
     window.__confirmed = TEACHER_KEYS[teacher];
     setHint('');
-    log('play ' + TEACHER_KEYS[teacher] + ' on target ' + anchorIndex + ' (' + kind + ')');
+    log('play ' + TEACHER_KEYS[teacher] + ' on target ' + anchorIndex + ' (' + V25_KINDS[anchorIndex] + ')');
   }
 
   function forceUntrack(idx) {
