@@ -451,11 +451,11 @@ function buildHelperScene(anchor, fs = 2.273, fy = -0.681) {
     const dAng = _smInit ? _smQ.angleTo(_rawQ) : 0;
     if (!_smInit || dPos > 0.35) {
       _smP.copy(_rawP); _smQ.copy(_rawQ); _smInit = true;
-    } else if (dPos < 0.0015 && dAng < 0.002) {
+    } else if (dPos < 0.004 && dAng < 0.005) {
       // micro-jitter only: hold perfectly still
     } else {
-      _smP.lerp(_rawP, 0.15);
-      _smQ.slerp(_rawQ, 0.15);
+      _smP.lerp(_rawP, 0.07);
+      _smQ.slerp(_rawQ, 0.07);
     }
     _smM.compose(_smP, _smQ, _rawS);
     _invM.copy(_rawM).invert();
@@ -1074,6 +1074,7 @@ async function startAR() {
   const updaters = [];
   const gate = createGate();
   let playing = null;
+  let zelieLostAt = 0;
   let lastScore = 0;
   let dropCooldown = 0;
   let relaxed = false;
@@ -1144,6 +1145,7 @@ async function startAR() {
   }
 
   function stopStory() {
+    zelieLostAt = 0;
     if (!playing) return;
     try { playing.proxy.onTargetLost(); } catch (e) { /* scene already reset */ }
     playing = null;
@@ -1208,6 +1210,20 @@ async function startAR() {
       if (anchors[i].__suppressUntil && nowSuppress < anchors[i].__suppressUntil) forceUntrack(i);
     }
     const idx = trackedIndex();
+    // Zelie grace: her letter's tracking can blink for a few frames at a
+    // time. While her story is playing, ride out a total loss of up to
+    // 1.2s instead of stopping and restarting her scene (the visible
+    // shaking). A different target taking over still stops her at once.
+    if (playing && TEACHER_KEYS[playing.teacher] === 'zelie') {
+      if (idx === playing.anchorIndex) {
+        zelieLostAt = 0;
+      } else if (idx === -1) {
+        const now = performance.now();
+        if (!zelieLostAt) zelieLostAt = now;
+        if (now - zelieLostAt < 1200) return;
+        zelieLostAt = 0;
+      }
+    }
     const suppressing = anchors.some((a) => a.__suppressUntil && nowSuppress < a.__suppressUntil);
     if (idx === -1) {
       stopStory();
