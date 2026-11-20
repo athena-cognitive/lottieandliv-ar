@@ -235,7 +235,8 @@ function buildBrokenBookScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.position.y = -0.2997;
+  cardFrame.scale.setScalar(2.273);
+  cardFrame.position.y = -0.681;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -418,7 +419,8 @@ function buildHelperScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.position.y = -0.2997;
+  cardFrame.scale.setScalar(2.273);
+  cardFrame.position.y = -0.681;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -570,7 +572,8 @@ function buildRainScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.position.y = -0.2997;
+  cardFrame.scale.setScalar(2.273);
+  cardFrame.position.y = -0.681;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -786,7 +789,8 @@ function buildLotoScene(anchor) {
   const stage = new THREE.Group();
   stage.matrixAutoUpdate = false;
   const cardFrame = new THREE.Group();
-  cardFrame.position.y = -0.2997;
+  cardFrame.scale.setScalar(2.273);
+  cardFrame.position.y = -0.681;
   anchor.group.add(cardFrame);
   cardFrame.add(stage);
   const _rawM = new THREE.Matrix4(), _invM = new THREE.Matrix4(), _smM = new THREE.Matrix4();
@@ -966,7 +970,7 @@ function buildLotoScene(anchor) {
 async function startAR() {
   const mindarThree = new MindARThree({
     container: document.getElementById('ar-container'),
-    imageTargetSrc: './targets-letters-crop.mind?v=19',
+    imageTargetSrc: './targets-letters-crop.mind?v=21',
     uiLoading: 'no', uiScanning: 'no', uiError: 'no',
     maxTrack: 1,
   });
